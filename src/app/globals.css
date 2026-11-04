@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --color-destaque: #0f766e;
+  --color-destaque-claro: #ccfbf1;
+  --color-alerta: #c2410c;
+}
+
+body {
+  background: #f6f7f9;
+  color: #18181b;
+}
+
+.sql-kw {
+  color: #0f766e;
+  font-weight: 600;
+}
+.sql-param {
+  color: #c2410c;
+}
+.sql-str {
+  color: #7c3aed;
+}

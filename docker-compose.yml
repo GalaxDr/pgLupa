@@ -1,0 +1,66 @@
+# Ambiente de desenvolvimento e testes da ferramenta.
+#   monitorado -> PostgreSQL 18 observado pela ferramenta (gera o log de consultas lentas)
+#   ferramenta -> PostgreSQL 18 dedicado ao armazenamento dos dados coletados
+services:
+  monitorado:
+    image: postgres:18
+    container_name: sqm-monitorado
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: loja
+    ports:
+      - "5434:5432"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - compute_query_id=on
+      - -c
+      - logging_collector=on
+      - -c
+      - log_destination=csvlog
+      - -c
+      - log_directory=/logs
+      - -c
+      - log_filename=postgresql-%a.log
+      - -c
+      - log_rotation_age=1d
+      - -c
+      - log_rotation_size=0
+      - -c
+      - log_truncate_on_rotation=on
+      - -c
+      - log_file_mode=0644
+      - -c
+      - log_min_duration_statement=100
+      - -c
+      - lc_messages=C
+    volumes:
+      - monitorado-dados:/var/lib/postgresql
+      - ./docker/logs:/logs
+      - ./docker/monitorado/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+
+  ferramenta:
+    image: postgres:18
+    container_name: sqm-ferramenta
+    environment:
+      POSTGRES_USER: ferramenta
+      POSTGRES_PASSWORD: ferramenta
+      POSTGRES_DB: ferramenta
+    ports:
+      - "5433:5432"
+    volumes:
+      - ferramenta-dados:/var/lib/postgresql
+
+  # Usado apenas na avaliação: docker compose run --rm pgbadger ...
+  pgbadger:
+    build: ./docker/pgbadger
+    profiles: ["avaliacao"]
+    volumes:
+      - ./resultados:/resultados
+
+volumes:
+  monitorado-dados:
+  ferramenta-dados:

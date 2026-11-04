@@ -1,0 +1,95 @@
+{
+  "arquivo": "/home/claude/pgtest/badger/teste1.csv",
+  "formato": "csvlog",
+  "tamanho": 341524,
+  "cenario": "Carga de exemplo (npm run carga): consultas lentas pelos protocolos simples e estendido, log_min_duration_statement = 100 ms",
+  "referencia": {
+    "linhas": 857,
+    "etapas": {
+      "parse": 3,
+      "bind": 1,
+      "statement": 398,
+      "execute": 404
+    }
+  },
+  "acuracia": {
+    "corretas": 802,
+    "nao_detectadas": 0,
+    "indevidas": 0,
+    "statement_pareadas": 398,
+    "texto_identico": 398
+  },
+  "completude": {
+    "referencia": {
+      "total": 802,
+      "data_hora": 802,
+      "duracao": 802,
+      "texto": 802,
+      "banco": 802,
+      "usuario": 802,
+      "aplicacao": 802,
+      "host": 802,
+      "pid": 802,
+      "query_id": 802
+    },
+    "ferramenta": {
+      "total": 802,
+      "data_hora": 802,
+      "duracao": 802,
+      "texto": 802,
+      "banco": 802,
+      "usuario": 802,
+      "aplicacao": 802,
+      "host": 802,
+      "pid": 802,
+      "query_id": 802
+    }
+  },
+  "medicoes": [
+    {
+      "segundos": 0.126586725,
+      "cpuSegundos": 0.145301,
+      "rssPicoMB": 106.796875,
+      "ocorrencias": 802
+    },
+    {
+      "segundos": 0.099076857,
+      "cpuSegundos": 0.090021,
+      "rssPicoMB": 124.296875,
+      "ocorrencias": 802
+    },
+    {
+      "segundos": 0.078106359,
+      "cpuSegundos": 0.062651,
+      "rssPicoMB": 129.30078125,
+      "ocorrencias": 802
+    },
+    {
+      "segundos": 0.080650919,
+      "cpuSegundos": 0.068085,
+      "rssPicoMB": 132.9375,
+      "ocorrencias": 802
+    },
+    {
+      "segundos": 0.071220402,
+      "cpuSegundos": 0.050966,
+      "rssPicoMB": 136.5625,
+      "ocorrencias": 802
+    }
+  ],
+  "tempoPgss": [
+    2.544713,
+    0.930124,
+    0.814446,
+    0.826277,
+    1.59908
+  ],
+  "pgbadger": {
+    "ocorrencias_pgbadger": 802,
+    "consultas_pgbadger": 12,
+    "consultas_com_contagem_igual": 12,
+    "consultas_ferramenta": 12,
+    "apenas_no_pgbadger": 0
+  },
+  "tempoPgbadger": 2.28
+}
