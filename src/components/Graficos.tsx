@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import type { PontoDuracao, PontoSerie } from "@/lib/consultas";
-import { formatarDuracao, formatarNumero } from "@/lib/formato";
+import { formatarDuracao, formatarNumero, FUSO_HORARIO } from "@/lib/formato";
 
 const COR_BARRA = "#0f766e";
 const COR_LINHA = "#c2410c";
@@ -22,11 +22,11 @@ const COR_EIXO = "#71717a";
 
 function formatadorInstante(inicio: number, fim: number) {
   const longo = fim - inicio > 36 * 3600 * 1000;
-  const f = new Intl.DateTimeFormat("pt-BR", longo ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+  const f = new Intl.DateTimeFormat("pt-BR", longo ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: FUSO_HORARIO } : { hour: "2-digit", minute: "2-digit", timeZone: FUSO_HORARIO });
   return (v: number | string) => f.format(new Date(v));
 }
 
-const dataCompleta = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+const dataCompleta = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: FUSO_HORARIO });
 
 function CaixaDica({ titulo, linhas }: { titulo: string; linhas: { cor: string; rotulo: string; valor: string }[] }) {
   return (

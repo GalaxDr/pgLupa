@@ -87,7 +87,7 @@ export async function obterSerie(f: Filtros, consultaId?: number): Promise<Ponto
   const { rows } = await pool().query<PontoSerie>(
     `WITH b AS (
        SELECT generate_series(
-         date_bin($${n + 1}::interval, ${fim} - $${n + 2}::interval, timestamptz '2000-01-01'),
+         date_bin($${n + 1}::interval, ${fim} - $${n + 2}::interval, timestamptz '2000-01-01 00:00:00-03'),
          ${fim}, $${n + 1}::interval) AS instante
      )
      SELECT b.instante, count(o.id)::int AS ocorrencias,

@@ -16,7 +16,13 @@ export function formatarDuracao(ms: number | null | undefined): string {
   return `${dec1.format(min / 60)} h`;
 }
 
-const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+/**
+ * Fuso horário de exibição das datas, igual no servidor e no navegador
+ * (o servidor da aplicação pode estar em UTC, como em contêineres na nuvem).
+ */
+export const FUSO_HORARIO = "America/Sao_Paulo";
+
+const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: FUSO_HORARIO });
 export const formatarDataHora = (d: Date | string | null | undefined) => (d ? dataHora.format(new Date(d)) : "–");
 
 /** Tempo decorrido em texto curto ("há 5 s", "há 3 min"). */
