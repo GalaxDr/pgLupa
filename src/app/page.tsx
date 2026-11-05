@@ -6,7 +6,8 @@ import { Cartao, Carregando, Indicador, Vazio } from "@/components/Cartao";
 import { FiltrosServidor } from "@/components/FiltrosServidor";
 import { GraficoSerie } from "@/components/Graficos";
 import { TabelaConsultas } from "@/components/TabelaConsultas";
-import { listarConsultas, obterResumo, obterSerie } from "@/lib/consultas";
+import { RecomendacoesPrioritarias } from "@/components/Recomendacoes";
+import { listarConsultas, obterExemplos, obterResumo, obterSerie } from "@/lib/consultas";
 import { lerFiltros, PERIODOS, urlComFiltros } from "@/lib/filtros";
 import { formatarDuracao, formatarNumero } from "@/lib/formato";
 import { LIMITE_UPLOAD_MB, modoHospedado, RETENCAO_ANALISE_HORAS } from "@/lib/analises";
@@ -49,6 +50,8 @@ async function Painel({ searchParams }: { searchParams: PageProps<"/">["searchPa
     obterSerie(filtros),
     listarConsultas({ ...filtros, ordem: "total" }, 8),
   ]);
+  const prioritarias = top.slice(0, 5);
+  const exemplos = await obterExemplos(filtros, prioritarias.map((l) => l.id));
 
   if (resumo.ocorrencias === 0) {
     return (
@@ -73,6 +76,7 @@ async function Painel({ searchParams }: { searchParams: PageProps<"/">["searchPa
       <Cartao titulo="Ocorrências ao longo do tempo" descricao="Quantidade de consultas lentas por intervalo e percentil 95 da duração">
         <GraficoSerie dados={serie} />
       </Cartao>
+      <RecomendacoesPrioritarias linhas={prioritarias} tempoTotalMs={resumo.tempo_total_ms} exemplos={exemplos} filtros={filtros} />
       <Cartao
         titulo="Consultas com maior tempo total"
         descricao="Soma das durações das ocorrências no período: indica onde a otimização traz maior ganho"

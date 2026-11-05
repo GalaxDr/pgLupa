@@ -31,6 +31,11 @@ A ferramenta funciona de dois modos:
   snapshots periódicos do `pg_stat_statements`; e remove dados antigos conforme a retenção.
 - **Envio de arquivos** (`src/lib/analises.ts`): recebe o arquivo por streaming (aceita `.gz`), processa
   em fila com o mesmo leitor do coletor, apaga o arquivo ao final e remove as análises expiradas.
+- **Diagnóstico** (`src/lib/recomendacoes.ts`): regras que combinam o texto da consulta (curingas no
+  LIKE, funções sobre colunas do filtro, OFFSET alto, NOT IN, subconsultas por linha, filtros sem
+  índice, entre outros), as estatísticas das ocorrências (participação no tempo total, frequência,
+  variabilidade e tendência) e os contadores do `pg_stat_statements` (blocos lidos, acerto do cache,
+  linhas por execução) para sugerir como resolver a lentidão, com os comandos SQL correspondentes.
 - **Aplicação web** (`src/app/`): Next.js 16 com App Router. Os Server Components consultam o banco
   diretamente; os Route Handlers em `/api` expõem os mesmos dados em JSON.
 - **Banco da ferramenta** (`db/migrations/`): tabelas `servidor`, `arquivo_log`, `consulta`,

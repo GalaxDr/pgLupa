@@ -7,7 +7,8 @@ import { GraficoSerie } from "@/components/Graficos";
 import { ProgressoAnalise } from "@/components/ProgressoAnalise";
 import { TabelaConsultas } from "@/components/TabelaConsultas";
 import { obterAnalise } from "@/lib/analises";
-import { listarConsultas, obterResumo, obterSerie } from "@/lib/consultas";
+import { RecomendacoesPrioritarias } from "@/components/Recomendacoes";
+import { listarConsultas, obterExemplos, obterResumo, obterSerie } from "@/lib/consultas";
 import { lerFiltros, ORDENS, type Filtros } from "@/lib/filtros";
 import { formatarBytes, formatarDataHora, formatarDuracao, formatarNumero } from "@/lib/formato";
 
@@ -62,7 +63,13 @@ async function Relatorio({ params, searchParams }: Pick<PageProps<"/analises/[id
   }
 
   const filtros: Filtros = { ...lerFiltros(await searchParams), servidor: analise.servidor_id, periodo: "tudo" };
-  const [resumo, serie, consultas] = await Promise.all([obterResumo(filtros), obterSerie(filtros), listarConsultas(filtros, 300)]);
+  const [resumo, serie, consultas, prioritarias] = await Promise.all([
+    obterResumo(filtros),
+    obterSerie(filtros),
+    listarConsultas(filtros, 300),
+    listarConsultas({ ...filtros, ordem: "total" }, 5),
+  ]);
+  const exemplos = await obterExemplos(filtros, prioritarias.map((l) => l.id));
 
   return (
     <div className="flex flex-col gap-5">
@@ -88,6 +95,13 @@ async function Relatorio({ params, searchParams }: Pick<PageProps<"/analises/[id
           <Cartao titulo="Ocorrências ao longo do tempo" descricao="Quantidade de consultas lentas por intervalo e percentil 95 da duração">
             <GraficoSerie dados={serie} />
           </Cartao>
+          <RecomendacoesPrioritarias
+            linhas={prioritarias}
+            tempoTotalMs={resumo.tempo_total_ms}
+            exemplos={exemplos}
+            filtros={filtros}
+            base={`/analises/${analise.id}/consultas`}
+          />
           <Cartao
             titulo={`${consultas.length} consulta${consultas.length > 1 ? "s" : ""}`}
             descricao={`Ordenadas por ${ORDENS[filtros.ordem].rotulo.toLowerCase()}. Clique em uma consulta para ver os detalhes.`}

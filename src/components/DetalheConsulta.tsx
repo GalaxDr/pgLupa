@@ -4,11 +4,13 @@ import { Suspense } from "react";
 import { Cartao, Indicador, Vazio } from "@/components/Cartao";
 import { FiltrosServidor } from "@/components/FiltrosServidor";
 import { GraficoDuracoes, GraficoSerie } from "@/components/Graficos";
+import { ListaRecomendacoes } from "@/components/Recomendacoes";
 import { Sql } from "@/components/Sql";
 import {
   listarDuracoes,
   listarOcorrencias,
   obterConsulta,
+  obterExemplos,
   obterDistribuicao,
   obterEstatisticasPgss,
   obterResumo,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/consultas";
 import type { Filtros } from "@/lib/filtros";
 import { formatarDataHora, formatarDuracao, formatarHaQuanto, formatarNumero } from "@/lib/formato";
+import { calcularTendencia, diagnosticar } from "@/lib/recomendacoes";
 
 /**
  * Detalhe de uma consulta normalizada. Com servidorId (análise enviada), todos os dados ficam
@@ -37,8 +40,10 @@ export async function DetalheConsulta({
   const consulta = await obterConsulta(id);
   if (!consulta) notFound();
 
-  const [resumo, serie, duracoes, ocorrencias, porBanco, porUsuario, porAplicacao, porHost, pgss] = await Promise.all([
+  const [resumo, geral, exemplos, serie, duracoes, ocorrencias, porBanco, porUsuario, porAplicacao, porHost, pgss] = await Promise.all([
     obterResumo(filtros, id),
+    obterResumo(filtros),
+    obterExemplos(filtros, [id]),
     obterSerie(filtros, id),
     listarDuracoes(filtros, id),
     listarOcorrencias(filtros, id, 20),
@@ -49,6 +54,25 @@ export async function DetalheConsulta({
     servidorId ? Promise.resolve(null) : obterEstatisticasPgss(consulta.query_id),
   ]);
   if (servidorId && resumo.ocorrencias === 0 && !filtrosUrl.banco && !filtrosUrl.usuario) notFound();
+
+  const recomendacoes =
+    resumo.ocorrencias > 0
+      ? diagnosticar({
+          texto: consulta.texto_normalizado,
+          exemplo: exemplos.get(id) ?? null,
+          ocorrencias: resumo.ocorrencias,
+          tempo_total_ms: resumo.tempo_total_ms,
+          media_ms: resumo.media_ms ?? 0,
+          mediana_ms: resumo.mediana_ms,
+          p95_ms: resumo.p95_ms ?? 0,
+          max_ms: resumo.max_ms ?? 0,
+          participacao: geral.tempo_total_ms > 0 ? resumo.tempo_total_ms / geral.tempo_total_ms : null,
+          duracao_periodo_s:
+            resumo.primeira && resumo.ultima ? (new Date(resumo.ultima).getTime() - new Date(resumo.primeira).getTime()) / 1000 : null,
+          tendencia: calcularTendencia(duracoes.map((d) => d.duracao_ms)),
+          pgss,
+        })
+      : [];
 
   return (
     <div className="flex flex-col gap-5">
@@ -83,6 +107,8 @@ export async function DetalheConsulta({
             <Indicador rotulo="Percentil 95" valor={formatarDuracao(resumo.p95_ms)} destaque />
             <Indicador rotulo="Máximo" valor={formatarDuracao(resumo.max_ms)} />
           </div>
+
+          <ListaRecomendacoes itens={recomendacoes} />
 
           <div className="grid gap-5 lg:grid-cols-2">
             <Cartao titulo="Ocorrências ao longo do tempo">

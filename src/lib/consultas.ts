@@ -31,6 +31,7 @@ export interface Resumo {
   consultas: number;
   tempo_total_ms: number;
   media_ms: number | null;
+  mediana_ms: number | null;
   p95_ms: number | null;
   max_ms: number | null;
   primeira: Date | null;
@@ -44,6 +45,7 @@ export async function obterResumo(f: Filtros, consultaId?: number): Promise<Resu
             count(DISTINCT o.consulta_id)::int AS consultas,
             COALESCE(sum(o.duracao_ms), 0)::float8 AS tempo_total_ms,
             avg(o.duracao_ms)::float8 AS media_ms,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY o.duracao_ms) AS mediana_ms,
             percentile_cont(0.95) WITHIN GROUP (ORDER BY o.duracao_ms) AS p95_ms,
             max(o.duracao_ms)::float8 AS max_ms,
             min(o.data_hora) AS primeira, max(o.data_hora) AS ultima
@@ -109,8 +111,10 @@ export interface LinhaConsulta {
   ocorrencias: number;
   tempo_total_ms: number;
   media_ms: number;
+  mediana_ms: number;
   p95_ms: number;
   max_ms: number;
+  primeira: Date;
   ultima: Date;
 }
 
@@ -119,14 +123,16 @@ export async function listarConsultas(f: Filtros, limite = 100): Promise<LinhaCo
   const { where, params } = condicoes(f);
   const coluna = ORDENS[f.ordem].coluna;
   const { rows } = await pool().query<LinhaConsulta>(
-    `SELECT c.id, c.query_id::text AS query_id, c.texto_normalizado, a.ocorrencias, a.tempo_total_ms, a.media_ms, a.p95_ms, a.max_ms, a.ultima
+    `SELECT c.id, c.query_id::text AS query_id, c.texto_normalizado, a.ocorrencias, a.tempo_total_ms, a.media_ms, a.mediana_ms, a.p95_ms, a.max_ms, a.primeira, a.ultima
      FROM (
        SELECT o.consulta_id,
               count(*)::int AS ocorrencias,
               sum(o.duracao_ms)::float8 AS tempo_total_ms,
               avg(o.duracao_ms)::float8 AS media_ms,
+              percentile_cont(0.5) WITHIN GROUP (ORDER BY o.duracao_ms) AS mediana_ms,
               percentile_cont(0.95) WITHIN GROUP (ORDER BY o.duracao_ms) AS p95_ms,
               max(o.duracao_ms)::float8 AS max_ms,
+              min(o.data_hora) AS primeira,
               max(o.data_hora) AS ultima
        FROM ocorrencia o ${sqlWhere(where)}
        GROUP BY o.consulta_id
@@ -177,6 +183,21 @@ export async function listarOcorrencias(f: Filtros, consultaId: number, limite =
     params,
   );
   return rows;
+}
+
+/** Texto executado da ocorrência mais lenta de cada consulta, com os valores dos parâmetros. */
+export async function obterExemplos(f: Filtros, consultaIds: number[]): Promise<Map<number, string>> {
+  if (consultaIds.length === 0) return new Map();
+  const { where, params } = condicoes(f);
+  params.push(consultaIds);
+  where.push(`o.consulta_id = ANY($${params.length}::bigint[])`);
+  const { rows } = await pool().query<{ consulta_id: number; texto_executado: string }>(
+    `SELECT DISTINCT ON (o.consulta_id) o.consulta_id, o.texto_executado
+     FROM ocorrencia o ${sqlWhere(where)}
+     ORDER BY o.consulta_id, o.duracao_ms DESC`,
+    params,
+  );
+  return new Map(rows.map((r) => [Number(r.consulta_id), r.texto_executado]));
 }
 
 export interface PontoDuracao {
