@@ -45,14 +45,6 @@ next-env.d.ts
 /docker/logs/*
 !/docker/logs/.gitkeep
 
-# trechos de log e relatórios do pgBadger gerados na avaliação
-/resultados/*.csv
-/resultados/*.pgbadger.json
 
 # saídas dos scripts de inicialização
 /logs/
-
-# configuração de produção (contém a senha do banco)
-.env.producao
-
-deploy/servidor.local.txt

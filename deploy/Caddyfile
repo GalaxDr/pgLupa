@@ -1,7 +1,0 @@
-{$DOMINIO} {
-	encode zstd gzip
-	request_body {
-		max_size {$MAX_UPLOAD_MB}MB
-	}
-	reverse_proxy app:3000
-}

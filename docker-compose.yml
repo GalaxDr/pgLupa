@@ -54,13 +54,6 @@ services:
     volumes:
       - ferramenta-dados:/var/lib/postgresql
 
-  # Usado apenas na avaliação: docker compose run --rm pgbadger ...
-  pgbadger:
-    build: ./docker/pgbadger
-    profiles: ["avaliacao"]
-    volumes:
-      - ./resultados:/resultados
-
 volumes:
   monitorado-dados:
   ferramenta-dados:

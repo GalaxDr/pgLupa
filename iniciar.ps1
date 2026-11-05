@@ -126,7 +126,7 @@ try {
   Write-Host 'Tudo pronto!' -ForegroundColor Green
   Write-Host '  Painel:   http://localhost:3000 (janela "Painel")'
   Write-Host '  Coletor:  janela "Coletor"'
-  Write-Host '  Para gerar consultas lentas de exemplo, dê dois cliques em gerar-carga.bat.'
+  Write-Host '  Para gerar consultas lentas de exemplo, execute npm run carga em outro terminal.'
   Write-Host '  Para encerrar, feche as janelas "Coletor" e "Painel". Os bancos continuam no Docker (docker compose stop para parar).'
   Stop-Transcript | Out-Null
   Read-Host 'Pressione Enter para fechar esta janela'

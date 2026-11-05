@@ -11,8 +11,7 @@ filtros. As ocorrências são associadas às estatísticas do `pg_stat_statement
 A ferramenta funciona de dois modos:
 
 - **Modo hospedado (site):** a pessoa envia o arquivo de log pelo navegador e recebe um relatório
-  interativo em um link exclusivo, que expira após alguns dias. Guia de publicação na VPS da Oracle:
-  [docs/publicacao-oracle.md](docs/publicacao-oracle.md).
+  interativo em um link exclusivo, que expira após alguns dias. Veja [Publicação do site](#publicação-do-site).
 - **Modo local (contínuo):** o coletor acompanha os arquivos de log de um servidor e o painel mostra as
   ocorrências em tempo real, com o histórico e os dados do `pg_stat_statements`. O envio de arquivos
   também está disponível em `/enviar`.
@@ -35,7 +34,8 @@ A ferramenta funciona de dois modos:
 - **Aplicação web** (`src/app/`): Next.js 16 com App Router. Os Server Components consultam o banco
   diretamente; os Route Handlers em `/api` expõem os mesmos dados em JSON.
 - **Banco da ferramenta** (`db/migrations/`): tabelas `servidor`, `arquivo_log`, `consulta`,
-  `ocorrencia` e `snapshot_estatistica`. O percentil 95 é calculado no banco com `percentile_cont`.
+  `ocorrencia`, `snapshot_estatistica` e `analise` (arquivos enviados pelo site). As migrações são
+  aplicadas automaticamente quando a aplicação inicia. O percentil 95 é calculado no banco com `percentile_cont`.
 - **Código compartilhado** (`src/lib/`): acesso ao banco e normalização das consultas, usados pelo
   coletor e pela aplicação web.
 
@@ -102,18 +102,33 @@ CREATE ROLE monitor LOGIN PASSWORD '...';
 GRANT pg_read_all_stats TO monitor;
 ```
 
+## Publicação do site
+
+O `Dockerfile` gera a imagem da aplicação web, que pode ser publicada em qualquer serviço com Docker
+(Easypanel, Coolify, uma VPS etc.). É necessário um PostgreSQL para o banco da ferramenta, e as tabelas
+são criadas na primeira inicialização. Variáveis de ambiente da aplicação:
+
+| Variável | Descrição |
+| --- | --- |
+| `DATABASE_URL` | Conexão com o banco da ferramenta |
+| `MODO` | `hospedado` para o site público: mostra apenas o envio de arquivos e os relatórios de cada análise |
+| `MAX_UPLOAD_MB` | Tamanho máximo do arquivo enviado (padrão 1024) |
+| `RETENCAO_ANALISE_HORAS` | Tempo até cada relatório ser apagado (padrão 72) |
+
+Monte um volume em `/data/uploads`, onde os arquivos ficam enquanto são processados, e a aplicação
+escuta na porta 3000. Se houver um proxy na frente, ajuste o limite de tamanho do corpo da requisição
+para o mesmo valor de `MAX_UPLOAD_MB`.
+
 ## Estrutura
 
 ```
 collector/            coletor (leitura incremental, interpretação do log, snapshots, retenção)
 db/migrations/        esquema do banco da ferramenta
 docker/               configuração do ambiente de exemplo
-scripts/              migração do banco, gerador de carga, cenários e avaliação
-docs/                 roteiro de validação
-resultados/           relatórios gerados pela avaliação
-src/app/              páginas (visão geral, consultas, detalhe, coletor) e rotas de API
+scripts/              migração do banco e gerador de carga de exemplo
+src/app/              páginas (visão geral, consultas, detalhe, coletor, envio e análises) e rotas de API
 src/components/       componentes de interface e gráficos
-src/lib/              acesso ao banco, consultas do painel, normalização e formatação
+src/lib/              acesso ao banco, consultas do painel, normalização, envio de arquivos e formatação
 tests/                testes automatizados (npm test)
 ```
 
@@ -123,13 +138,14 @@ tests/                testes automatizados (npm test)
 | --- | --- |
 | `GET /api/consultas` | Resumo do período e consultas agrupadas. Parâmetros: `periodo` (`1h`, `6h`, `24h`, `7d`, `30d`, `tudo`), `servidor`, `banco`, `usuario`, `busca`, `ordem` (`total`, `ocorrencias`, `media`, `p95`, `max`, `recente`), `limite` |
 | `GET /api/serie` | Ocorrências e percentil 95 por intervalo de tempo. Mesmos filtros, mais `consulta` (id) |
+| `POST /api/analises` | Envio de um arquivo de log (corpo da requisição, `.gz` aceito; parâmetro `nome`). Retorna o id da análise |
+| `GET /api/analises/{id}` | Situação do processamento de uma análise |
 
-## Testes e avaliação
+## Testes
 
 ```powershell
-npm test                                  # testes automatizados do coletor e da normalização
-npm run cenario -- <carga|pgbench|impacto> # cenários de avaliação no servidor de exemplo
-npm run avaliacao -- <arquivo de log>      # acurácia, completude, tempo, sobrecarga e comparação com o pgBadger
+npm test      # testes automatizados do coletor e da normalização
 ```
 
-O passo a passo da validação está em [docs/roteiro-validacao.md](docs/roteiro-validacao.md).
+Os scripts usados na avaliação do TC (acurácia, completude, tempo, sobrecarga e comparação com o
+pgBadger) estão no branch [`avaliacao-tc`](../../tree/avaliacao-tc).
