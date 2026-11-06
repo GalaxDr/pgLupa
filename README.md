@@ -1,4 +1,4 @@
-# Monitor de queries lentas para PostgreSQL
+# pgLupa: monitor de queries lentas para PostgreSQL
 
 Ferramenta desenvolvida no Trabalho de Conclusão de Curso de Engenharia de Computação (UNISC):
 *Desenvolvimento de uma ferramenta para monitoramento de queries lentas em PostgreSQL*.

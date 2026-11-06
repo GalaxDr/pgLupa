@@ -6,7 +6,7 @@ import { Navegacao } from "@/components/Navegacao";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Monitor de queries lentas",
+  title: { default: "pgLupa · Monitor de queries lentas", template: "%s · pgLupa" },
   description: "Monitoramento de consultas lentas em PostgreSQL a partir do log e do pg_stat_statements",
 };
 
@@ -17,13 +17,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
             <Link href="/" className="flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-destaque text-white">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M12 9v4l2.5 2.5M10 2h4" />
-                </svg>
+              <Marca />
+              <span className="hidden leading-tight sm:block">
+                <span className="block text-sm font-semibold tracking-tight text-zinc-900">pgLupa</span>
+                <span className="block text-[11px] text-zinc-500">Monitor de queries lentas do PostgreSQL</span>
               </span>
-              <span className="hidden text-sm font-semibold tracking-tight text-zinc-900 sm:inline">Monitor de queries lentas</span>
             </Link>
             <Suspense fallback={<div />}>
               <NavegacaoConformeModo />
@@ -40,4 +38,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 async function NavegacaoConformeModo() {
   await connection();
   return <Navegacao hospedado={process.env.MODO === "hospedado"} />;
+}
+
+/** Marca da ferramenta: uma lupa sobre barras, o mesmo desenho do ícone (src/app/icon.svg). */
+function Marca() {
+  return (
+    <svg viewBox="0 0 32 32" className="h-8 w-8 shrink-0" aria-hidden>
+      <rect width="32" height="32" rx="7" fill="#0f766e" />
+      <circle cx="14" cy="14" r="7.6" fill="none" stroke="#fff" strokeWidth="2.4" />
+      <path d="M19.6 19.6l5.4 5.4" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="M11 16.8v-1.6M17 16.8v-2.8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      <path d="M14 16.8V10.6" stroke="#fdba74" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
