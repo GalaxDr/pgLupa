@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Estado = { tipo: "parado" } | { tipo: "enviando"; progresso: number; nome: string } | { tipo: "erro"; mensagem: string };
 
@@ -13,6 +13,15 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<Estado>({ tipo: "parado" });
   const [arrastando, setArrastando] = useState(false);
+
+  // ao voltar para esta página pelo histórico do navegador, a área de envio recomeça do zero
+  useEffect(() => {
+    const aoMostrar = (e: PageTransitionEvent) => {
+      if (e.persisted) setEstado({ tipo: "parado" });
+    };
+    window.addEventListener("pageshow", aoMostrar);
+    return () => window.removeEventListener("pageshow", aoMostrar);
+  }, []);
 
   function enviar(arquivo: File) {
     const nome = arquivo.name.toLowerCase();
@@ -33,7 +42,11 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
     xhr.onload = () => {
       try {
         const r = JSON.parse(xhr.responseText);
-        if (xhr.status === 201) router.push(r.url);
+        if (xhr.status === 201) {
+          // a página pode ser mantida em memória pelo roteador: limpa o estado antes de sair dela
+          setEstado({ tipo: "parado" });
+          router.push(r.url);
+        }
         else setEstado({ tipo: "erro", mensagem: r.erro ?? "Não foi possível enviar o arquivo." });
       } catch {
         setEstado({ tipo: "erro", mensagem: `Falha no envio (código ${xhr.status}).` });
@@ -73,7 +86,9 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
         </span>
         {enviando ? (
           <div className="w-full max-w-sm">
-            <p className="truncate text-sm font-medium text-zinc-900">Enviando {estado.nome}…</p>
+            <p className="truncate text-sm font-medium text-zinc-900">
+              {estado.progresso >= 1 ? "Preparando o relatório…" : `Enviando ${estado.nome}…`}
+            </p>
             <div className="mt-3 h-2 w-full rounded-full bg-zinc-100">
               <div className="h-2 rounded-full bg-destaque transition-all" style={{ width: `${Math.round(estado.progresso * 100)}%` }} />
             </div>

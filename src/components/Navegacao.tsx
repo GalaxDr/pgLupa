@@ -16,16 +16,19 @@ const LINKS_HOSPEDADO = [{ href: "/", rotulo: "Enviar log" }];
 export function Navegacao({ hospedado }: { hospedado: boolean }) {
   const links = hospedado ? LINKS_HOSPEDADO : LINKS_LOCAL;
   return (
-    <Suspense fallback={<Links links={links} pathname={null} />}>
-      <LinksAtivos links={links} />
+    <Suspense fallback={hospedado ? null : <Links links={links} pathname={null} />}>
+      <LinksAtivos links={links} hospedado={hospedado} />
     </Suspense>
   );
 }
 
 type ListaLinks = { href: string; rotulo: string }[];
 
-function LinksAtivos({ links }: { links: ListaLinks }) {
-  return <Links links={links} pathname={usePathname()} />;
+function LinksAtivos({ links, hospedado }: { links: ListaLinks; hospedado: boolean }) {
+  const pathname = usePathname();
+  // no site, o relatório de uma análise não mostra o menu: a marca no topo volta para a página de envio
+  if (hospedado && pathname.startsWith("/analises")) return null;
+  return <Links links={links} pathname={pathname} />;
 }
 
 function Links({ links, pathname }: { links: ListaLinks; pathname: string | null }) {
