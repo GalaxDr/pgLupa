@@ -10,6 +10,7 @@ const ESTILO: Record<Severidade, { rotulo: string; selo: string; borda: string }
   alta: { rotulo: "Alta", selo: "bg-orange-100 text-orange-800", borda: "border-l-orange-500" },
   media: { rotulo: "Média", selo: "bg-amber-50 text-amber-800", borda: "border-l-amber-400" },
   baixa: { rotulo: "Baixa", selo: "bg-zinc-100 text-zinc-600", borda: "border-l-zinc-300" },
+  verificacao: { rotulo: "Verificação", selo: "bg-destaque-claro text-destaque", borda: "border-l-destaque" },
 };
 
 function Selo({ severidade }: { severidade: Severidade }) {
@@ -33,7 +34,7 @@ export function ListaRecomendacoes({ itens }: { itens: Recomendacao[] }) {
             </div>
             <p className="mt-1.5 text-sm text-zinc-600">{r.evidencia}</p>
             <p className="mt-1.5 text-sm text-zinc-800">
-              <span className="font-medium">Como resolver: </span>
+              <span className="font-medium">{r.severidade === "verificacao" ? "Como fazer: " : "Como resolver: "}</span>
               {r.acao}
             </p>
             {r.sql && (

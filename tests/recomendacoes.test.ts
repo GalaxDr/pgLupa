@@ -81,7 +81,8 @@ test("regras das estatísticas", () => {
 test("ordena por severidade e deixa o plano por último", () => {
   const r = diag("SELECT * FROM cliente WHERE nome ILIKE '%a%' OFFSET 50000", { participacao: 0.5 });
   assert.equal(r[r.length - 1].id, "plano");
-  const ordem = { alta: 0, media: 1, baixa: 2 };
+  assert.equal(r[r.length - 1].severidade, "verificacao");
+  const ordem = { alta: 0, media: 1, baixa: 2, verificacao: 3 };
   for (let i = 1; i < r.length - 1; i++) assert.ok(ordem[r[i - 1].severidade] <= ordem[r[i].severidade]);
   assert.notEqual(principal(r)?.id, "impacto");
 });

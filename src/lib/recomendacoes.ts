@@ -8,7 +8,8 @@ import { formatarDuracao, formatarNumero } from "./formato";
  * hipóteses a confirmar com EXPLAIN.
  */
 
-export type Severidade = "alta" | "media" | "baixa";
+/** Prioridade do problema encontrado; "verificacao" marca o passo de confirmação, fora dessa escala. */
+export type Severidade = "alta" | "media" | "baixa" | "verificacao";
 
 export interface Recomendacao {
   id: string;
@@ -48,7 +49,7 @@ export interface DadosDiagnostico {
   } | null;
 }
 
-const ORDEM: Record<Severidade, number> = { alta: 0, media: 1, baixa: 2 };
+const ORDEM: Record<Severidade, number> = { alta: 0, media: 1, baixa: 2, verificacao: 3 };
 const pct = (v: number) => `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: v < 0.1 ? 1 : 0 })}%`;
 const vezes = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} vezes`;
 
@@ -661,7 +662,7 @@ function recomendacaoPlano(d: DadosDiagnostico): Recomendacao {
   const temParametro = !d.exemplo && /\$\d+/.test(d.texto);
   return {
     id: "plano",
-    severidade: "baixa",
+    severidade: "verificacao",
     titulo: "Confirme no plano de execução",
     evidencia: d.exemplo ? "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros." : "O log não trouxe os valores desta consulta.",
     acao:
