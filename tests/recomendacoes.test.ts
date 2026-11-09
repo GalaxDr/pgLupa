@@ -18,6 +18,7 @@ test("sugere índice composto com igualdades antes da ordenação", () => {
 
 test("não sugere índice para busca apenas pela chave primária", () => {
   assert.ok(!ids("SELECT nome FROM cliente WHERE id = 7").includes("indice"));
+  assert.ok(!ids("SELECT nome FROM cliente WHERE id <= 1000").includes("indice"));
 });
 
 test("associa as colunas às tabelas pelos aliases", () => {

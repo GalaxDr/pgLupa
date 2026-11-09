@@ -114,8 +114,8 @@ try {
 
   Etapa 'Abrindo o coletor e o painel'
   $raiz = $PSScriptRoot
-  Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$Host.UI.RawUI.WindowTitle = 'Coletor'; Set-Location '$raiz'; npm run collector 2>&1 | Tee-Object -FilePath logs\coletor.log"
-  Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$Host.UI.RawUI.WindowTitle = 'Painel'; Set-Location '$raiz'; npm run dev 2>&1 | Tee-Object -FilePath logs\painel.log"
+  Start-Process powershell -ArgumentList '-NoExit', '-Command', "[Console]::OutputEncoding = [Text.Encoding]::UTF8; `$Host.UI.RawUI.WindowTitle = 'Coletor'; Set-Location '$raiz'; npm run collector 2>&1 | Tee-Object -FilePath logs\coletor.log"
+  Start-Process powershell -ArgumentList '-NoExit', '-Command', "[Console]::OutputEncoding = [Text.Encoding]::UTF8; `$Host.UI.RawUI.WindowTitle = 'Painel'; Set-Location '$raiz'; npm run dev 2>&1 | Tee-Object -FilePath logs\painel.log"
   $ok = Aguardar 'o painel em http://localhost:3000' {
     try { (Invoke-WebRequest -Uri 'http://localhost:3000/coletor' -UseBasicParsing -TimeoutSec 10).StatusCode -eq 200 } catch { $false }
   } 180

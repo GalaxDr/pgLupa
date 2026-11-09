@@ -10,25 +10,23 @@ const LINKS_LOCAL = [
   { href: "/coletor", rotulo: "Coletor" },
   { href: "/enviar", rotulo: "Enviar log" },
 ];
-const LINKS_HOSPEDADO = [{ href: "/", rotulo: "Enviar log" }];
-
-/** Links do menu; o item ativo depende da URL, disponível apenas em tempo de execução. */
+/**
+ * Links do menu; o item ativo depende da URL, disponível apenas em tempo de execução.
+ * No site (modo hospedado) não há menu: a página inicial é a de envio, e a marca no topo volta para ela.
+ */
 export function Navegacao({ hospedado }: { hospedado: boolean }) {
-  const links = hospedado ? LINKS_HOSPEDADO : LINKS_LOCAL;
+  if (hospedado) return null;
   return (
-    <Suspense fallback={hospedado ? null : <Links links={links} pathname={null} />}>
-      <LinksAtivos links={links} hospedado={hospedado} />
+    <Suspense fallback={<Links links={LINKS_LOCAL} pathname={null} />}>
+      <LinksAtivos links={LINKS_LOCAL} />
     </Suspense>
   );
 }
 
 type ListaLinks = { href: string; rotulo: string }[];
 
-function LinksAtivos({ links, hospedado }: { links: ListaLinks; hospedado: boolean }) {
-  const pathname = usePathname();
-  // no site, o relatório de uma análise não mostra o menu: a marca no topo volta para a página de envio
-  if (hospedado && pathname.startsWith("/analises")) return null;
-  return <Links links={links} pathname={pathname} />;
+function LinksAtivos({ links }: { links: ListaLinks }) {
+  return <Links links={links} pathname={usePathname()} />;
 }
 
 function Links({ links, pathname }: { links: ListaLinks; pathname: string | null }) {

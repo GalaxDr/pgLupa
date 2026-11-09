@@ -230,8 +230,8 @@ function indiceCandidato(e: Estrutura) {
     const iguaisU = [...new Set(g.iguais)];
     const faixasU = [...new Set(g.faixas)].filter((c) => !iguaisU.includes(c));
     if (iguaisU.length + faixasU.length === 0) continue;
-    // uma busca apenas pela chave primária já usa índice
-    if (iguaisU.length === 1 && iguaisU[0] === "id" && faixasU.length === 0) continue;
+    // um filtro apenas pela chave primária (igualdade ou faixa) já usa o índice da própria chave
+    if ([...iguaisU, ...faixasU].every((c) => c === "id")) continue;
     const colunas = [...iguaisU];
     const ordemValida = g.ordem.length > 0 && (faixasU.length === 0 || faixasU[0] === g.ordem[0]) && e.temLimit;
     if (ordemValida) colunas.push(...g.ordem.filter((c) => !colunas.includes(c)));
@@ -509,7 +509,8 @@ function regrasDoTexto(d: DadosDiagnostico): Recomendacao[] {
       const itens = [...juncoes].slice(0, 4);
       r.push({
         id: "juncao",
-        severidade: "baixa",
+        // elevada de baixa para média após os casos de teste: sem o índice da junção, o índice do filtro quase não reduziu o tempo
+        severidade: "media",
         titulo: "Índices nas colunas de junção",
         evidencia: `A consulta relaciona tabelas pelas colunas ${lista(itens)}. Chaves estrangeiras não recebem índice automaticamente no PostgreSQL.`,
         acao: "Garanta que essas colunas tenham índice, principalmente na tabela com mais linhas, para que a junção não precise ler a tabela inteira.",
