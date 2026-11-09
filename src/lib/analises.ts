@@ -2,20 +2,20 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, open, rename, rm } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { Transform, type Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
 import { lerServidor } from "../../collector/leitura";
+import { config } from "./config";
 import { pool } from "./db";
 
 /** Modo hospedado: o site recebe arquivos de log por upload e as páginas globais ficam desativadas. */
-export const modoHospedado = () => process.env.MODO === "hospedado";
+export const modoHospedado = () => config.hospedado;
 
-const DIR_UPLOADS = () => path.resolve(/*turbopackIgnore: true*/ process.env.DIR_UPLOADS ?? path.join(os.tmpdir(), "sqm-uploads"));
-export const LIMITE_UPLOAD_MB = () => Number(process.env.MAX_UPLOAD_MB ?? 1024);
-export const RETENCAO_ANALISE_HORAS = () => Number(process.env.RETENCAO_ANALISE_HORAS ?? 72);
+const DIR_UPLOADS = () => config.diretorioUploads;
+export const LIMITE_UPLOAD_MB = () => config.maxUploadMb;
+export const RETENCAO_ANALISE_HORAS = () => config.retencaoAnaliseHoras;
 
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

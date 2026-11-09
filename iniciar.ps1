@@ -83,21 +83,6 @@ try {
     Write-Host 'dependências já instaladas'
   }
 
-  Etapa 'Configurando o arquivo .env'
-  if (-not (Test-Path '.env')) {
-    Copy-Item '.env.example' '.env'
-    Write-Host '.env criado a partir de .env.example'
-  } else {
-    # versões anteriores usavam localhost, que no Windows pode resolver para IPv6 (::1)
-    $conteudo = Get-Content '.env' -Raw
-    if ($conteudo -match '@localhost:') {
-      ($conteudo -replace '@localhost:', '@127.0.0.1:') | Set-Content '.env' -NoNewline -Encoding ASCII
-      Write-Host '.env atualizado para usar 127.0.0.1'
-    } else {
-      Write-Host '.env já existe (mantido)'
-    }
-  }
-
   Etapa 'Subindo os bancos de dados (docker compose)'
   docker compose up -d monitorado ferramenta
   if ($LASTEXITCODE -ne 0) { Falhar 'docker compose up falhou. Veja a mensagem acima (por exemplo, porta em uso).' }

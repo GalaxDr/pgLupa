@@ -1,6 +1,7 @@
 import { open, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
+import { config } from "../src/lib/config";
 import { pool } from "../src/lib/db";
 import { normalizarSql } from "../src/lib/normalizar";
 import { aplicarParametros, interpretarMensagem } from "./mensagem";
@@ -17,7 +18,7 @@ export interface Servidor {
 }
 
 // quantidade de bytes lidos do arquivo por transação (padrão 1 MB)
-const TAMANHO_BLOCO = Math.max(64, Number(process.env.BLOCO_LEITURA_KB ?? 1024)) * 1024;
+const TAMANHO_BLOCO = config.blocoLeituraKb * 1024;
 const EXTENSAO: Record<FormatoLog, string> = { csvlog: ".csv", jsonlog: ".json" };
 
 /** Lê o conteúdo novo de todos os arquivos de log do servidor. Retorna o número de ocorrências gravadas. */

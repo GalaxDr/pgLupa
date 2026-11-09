@@ -4,24 +4,43 @@
  *
  *   npm run collector
  */
+import { readdir, stat } from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
+import { config } from "../src/lib/config";
 import { pool } from "../src/lib/db";
 import { registrarSnapshot } from "./estatisticas";
 import { lerServidor, type Servidor } from "./leitura";
 
-const INTERVALO_LEITURA = Number(process.env.INTERVALO_LEITURA_MS ?? 2000);
-const INTERVALO_SNAPSHOT = Number(process.env.INTERVALO_SNAPSHOT_MS ?? 60000);
-const RETENCAO_DIAS = Number(process.env.RETENCAO_DIAS ?? 30);
+const INTERVALO_LEITURA = config.intervaloLeituraMs;
+const INTERVALO_SNAPSHOT = config.intervaloSnapshotMs;
+const RETENCAO_DIAS = config.retencaoDias;
 
 let encerrando = false;
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Cadastra (ou atualiza) o servidor definido nas variáveis de ambiente. */
+/** Formato do log pelo arquivo .csv ou .json mais recente do diretório (csvlog se não houver nenhum). */
+async function detectarFormato(dir: string): Promise<"csvlog" | "jsonlog"> {
+  let maisRecente = { ext: ".csv", mtime: 0 };
+  try {
+    for (const f of await readdir(dir)) {
+      const ext = path.extname(f);
+      if (ext !== ".csv" && ext !== ".json") continue;
+      const { mtimeMs } = await stat(path.join(dir, f));
+      if (mtimeMs > maisRecente.mtime) maisRecente = { ext, mtime: mtimeMs };
+    }
+  } catch {
+    // diretório ainda inexistente: o servidor monitorado o cria ao gravar o primeiro log
+  }
+  return maisRecente.ext === ".json" ? "jsonlog" : "csvlog";
+}
+
+/** Cadastra (ou atualiza) o servidor definido na configuração. */
 async function registrarServidorDoAmbiente(): Promise<void> {
-  const nome = process.env.SERVIDOR_NOME;
-  const dir = process.env.LOG_DIR;
+  const nome = config.servidorNome;
+  const dir = config.diretorioLogs;
   if (!nome || !dir) return;
-  const formato = process.env.LOG_FORMAT ?? "csvlog";
+  const formato = config.formatoLog ?? (await detectarFormato(dir));
   await pool().query(
     `INSERT INTO servidor (nome, diretorio_logs, formato_log) VALUES ($1, $2, $3)
      ON CONFLICT (nome) DO UPDATE SET diretorio_logs = EXCLUDED.diretorio_logs, formato_log = EXCLUDED.formato_log`,
@@ -34,7 +53,7 @@ async function servidoresAtivos(): Promise<Servidor[]> {
     "SELECT id, nome, diretorio_logs, formato_log FROM servidor WHERE ativo ORDER BY id",
   );
   // ANONIMIZAR_VALORES=true: não armazena os valores das consultas (apenas o texto normalizado)
-  const anonimizar = process.env.ANONIMIZAR_VALORES === "true";
+  const anonimizar = config.anonimizar;
   return rows.map((s) => ({ ...s, anonimizar }));
 }
 
@@ -53,10 +72,10 @@ async function cicloDeLeitura() {
 }
 
 async function cicloDeSnapshots() {
-  const conexao = process.env.MONITORADO_URL;
-  const nome = process.env.SERVIDOR_NOME;
+  const conexao = config.monitoradoUrl;
+  const nome = config.servidorNome;
   if (!conexao || !nome) {
-    console.log("MONITORADO_URL não definida: snapshots do pg_stat_statements desativados");
+    console.log("MONITORADO_URL vazia: snapshots do pg_stat_statements desativados");
     return;
   }
   while (!encerrando) {
@@ -98,14 +117,14 @@ async function cicloDeRetencao() {
 async function main() {
   // prioridade reduzida, para não competir com o servidor monitorado quando executados na mesma máquina
   try {
-    os.setPriority(Number(process.env.PRIORIDADE_COLETOR ?? 10));
+    os.setPriority(config.prioridadeColetor);
   } catch {
     // sem permissão para alterar a prioridade: segue com a prioridade padrão
   }
   await registrarServidorDoAmbiente();
   const servidores = await servidoresAtivos();
   if (servidores.length === 0) {
-    console.error("nenhum servidor ativo cadastrado; defina SERVIDOR_NOME e LOG_DIR no .env");
+    console.error("nenhum servidor ativo cadastrado; defina SERVIDOR_NOME e LOG_DIR");
     process.exit(1);
   }
   for (const s of servidores) console.log(`monitorando ${s.nome}: ${s.diretorio_logs} (${s.formato_log})`);

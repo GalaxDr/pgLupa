@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Navegacao } from "@/components/Navegacao";
+import { config } from "@/lib/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 /** O modo (local ou hospedado) é lido em tempo de execução, e não no momento do build. */
 async function NavegacaoConformeModo() {
   await connection();
-  return <Navegacao hospedado={process.env.MODO === "hospedado"} />;
+  return <Navegacao hospedado={config.hospedado} />;
 }
 
 /** Marca da ferramenta: uma lupa sobre barras, o mesmo desenho do ícone (src/app/icon.svg). */

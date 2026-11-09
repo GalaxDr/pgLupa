@@ -59,7 +59,6 @@ Para fazer manualmente, no PowerShell:
 
 ```powershell
 npm install
-Copy-Item .env.example .env
 
 # sobe o PostgreSQL monitorado (porta 5434) e o da ferramenta (porta 5433);
 # na primeira vez, o servidor monitorado cria um banco de exemplo com cerca de 1,6 milhão de linhas
@@ -97,9 +96,15 @@ compute_query_id = on                   # query_id no log, para associar ao pg_s
 shared_preload_libraries = 'pg_stat_statements'
 ```
 
-No `.env`, aponte `LOG_DIR` para o diretório dos logs (o coletor precisa de permissão de leitura),
-ajuste `LOG_FORMAT` e, para os snapshots, informe em `MONITORADO_URL` um usuário com o papel
-`pg_read_all_stats`:
+Depois, crie um `.env` na raiz do projeto apenas com o que for diferente do ambiente de exemplo,
+normalmente o diretório dos logs (o coletor precisa de permissão de leitura) e a conexão para os
+snapshots, com um usuário com o papel `pg_read_all_stats`:
+
+```ini
+SERVIDOR_NOME=producao
+LOG_DIR=D:/postgres/dados/log
+MONITORADO_URL=postgres://monitor:senha@servidor:5432/banco
+```
 
 ```sql
 CREATE EXTENSION pg_stat_statements;
@@ -111,18 +116,31 @@ Os logs podem conter dados pessoais nos valores das consultas (nomes, e-mails, d
 `ANONIMIZAR_VALORES=true`, o coletor grava apenas o texto normalizado, com os valores trocados por
 `$1`, `$2`... No site, a mesma opção aparece na página de envio e vem marcada por padrão.
 
+## Configuração
+
+Todas as variáveis são opcionais e lidas em um único lugar, `src/lib/config.ts`. Os valores padrão
+correspondem ao ambiente de exemplo do `docker compose`, por isso ele funciona sem `.env`.
+
+| Variável | Padrão | Descrição |
+| --- | --- | --- |
+| `DATABASE_URL` | banco `ferramenta` do docker compose | Conexão com o banco da ferramenta |
+| `SERVIDOR_NOME` | `local` | Nome do servidor monitorado no painel |
+| `LOG_DIR` | `./docker/logs` | Diretório dos arquivos de log |
+| `LOG_FORMAT` | pela extensão dos arquivos | `csvlog` ou `jsonlog` |
+| `MONITORADO_URL` | servidor de exemplo | Conexão para os snapshots do `pg_stat_statements` (vazia desativa) |
+| `ANONIMIZAR_VALORES` | `false` | Grava apenas o texto normalizado, sem os valores |
+| `RETENCAO_DIAS` | `30` | Dias até as ocorrências e os snapshots serem removidos (0 = nunca) |
+| `INTERVALO_LEITURA_MS` / `INTERVALO_SNAPSHOT_MS` | `2000` / `60000` | Intervalos do coletor |
+| `MODO` | | `hospedado` para o site público: apenas o envio de arquivos e os relatórios |
+| `MAX_UPLOAD_MB` | `1024` | Tamanho máximo do arquivo enviado pelo site |
+| `RETENCAO_ANALISE_HORAS` | `72` | Tempo até cada relatório enviado ser apagado |
+
 ## Publicação do site
 
 O `Dockerfile` gera a imagem da aplicação web, que pode ser publicada em qualquer serviço com Docker
 (Easypanel, Coolify, uma VPS etc.). É necessário um PostgreSQL para o banco da ferramenta, e as tabelas
-são criadas na primeira inicialização. Variáveis de ambiente da aplicação:
-
-| Variável | Descrição |
-| --- | --- |
-| `DATABASE_URL` | Conexão com o banco da ferramenta |
-| `MODO` | `hospedado` para o site público: mostra apenas o envio de arquivos e os relatórios de cada análise |
-| `MAX_UPLOAD_MB` | Tamanho máximo do arquivo enviado (padrão 1024) |
-| `RETENCAO_ANALISE_HORAS` | Tempo até cada relatório ser apagado (padrão 72) |
+são criadas na primeira inicialização. Basta definir `DATABASE_URL` e `MODO=hospedado` (veja a
+seção Configuração).
 
 Monte um volume em `/data/uploads`, onde os arquivos ficam enquanto são processados, e a aplicação
 escuta na porta 3000. Se houver um proxy na frente, ajuste o limite de tamanho do corpo da requisição

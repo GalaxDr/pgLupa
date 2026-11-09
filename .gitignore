@@ -48,3 +48,7 @@ next-env.d.ts
 
 # saídas dos scripts de inicialização
 /logs/
+
+# gerados pelo next dev
+AGENTS.md
+CLAUDE.md

@@ -6,11 +6,12 @@
  *   npm run carga            (60 segundos)
  *   npm run carga -- 300     (300 segundos)
  */
+import { config } from "../src/lib/config";
 import { Pool } from "pg";
 
 const segundos = Number(process.argv[2] ?? 60);
 const pool = new Pool({
-  connectionString: process.env.CARGA_URL ?? "postgres://postgres:postgres@127.0.0.1:5434/loja",
+  connectionString: config.cargaUrl,
   max: 4,
   application_name: "carga-exemplo",
 });

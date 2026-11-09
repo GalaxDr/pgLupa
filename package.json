@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "collector": "tsx --env-file=.env collector/index.ts",
-    "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
-    "carga": "tsx --env-file=.env scripts/carga.ts",
+    "collector": "tsx collector/index.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "carga": "tsx scripts/carga.ts",
     "test": "tsx --test \"tests/**/*.test.ts\""
   },
   "dependencies": {
