@@ -52,3 +52,7 @@ CLAUDE.md
 
 # logs do antigo servidor de exemplo (agora no ramo testes)
 /docker/
+
+# logs do servidor de exemplo dos testes
+/testes/logs/*
+!/testes/logs/.gitkeep

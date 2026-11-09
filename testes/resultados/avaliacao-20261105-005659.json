@@ -1,0 +1,83 @@
+{
+  "arquivo": "C:\\Users\\julio\\Desktop\\saas\\slowquery-monitor\\resultados\\cenario-pgbench-20261105-0042.csv",
+  "formato": "csvlog",
+  "tamanho": 17257278,
+  "cenario": "pgbench (TPC-B), protocolo estendido, log_min_duration_statement = 0, 30 s, 4 clientes",
+  "referencia": {
+    "linhas": 57338,
+    "etapas": {
+      "parse": 19110,
+      "bind": 19110,
+      "statement": 7,
+      "execute": 19110
+    }
+  },
+  "acuracia": {
+    "corretas": 19117,
+    "nao_detectadas": 0,
+    "indevidas": 0,
+    "statement_pareadas": 7,
+    "texto_identico": 7
+  },
+  "completude": {
+    "referencia": {
+      "total": 19117,
+      "data_hora": 19117,
+      "duracao": 19117,
+      "texto": 19117,
+      "banco": 19117,
+      "usuario": 19117,
+      "aplicacao": 19117,
+      "host": 19117,
+      "pid": 19117,
+      "query_id": 19117
+    },
+    "ferramenta": {
+      "total": 19117,
+      "data_hora": 19117,
+      "duracao": 19117,
+      "texto": 19117,
+      "banco": 19117,
+      "usuario": 19117,
+      "aplicacao": 19117,
+      "host": 19117,
+      "pid": 19117,
+      "query_id": 19117
+    }
+  },
+  "medicoes": [
+    {
+      "segundos": 2.0369956,
+      "cpuSegundos": 1.718,
+      "rssPicoMB": 229.16015625,
+      "ocorrencias": 19117
+    },
+    {
+      "segundos": 1.7714397,
+      "cpuSegundos": 1.626,
+      "rssPicoMB": 247.76171875,
+      "ocorrencias": 19117
+    },
+    {
+      "segundos": 1.757383,
+      "cpuSegundos": 1.156,
+      "rssPicoMB": 269.76953125,
+      "ocorrencias": 19117
+    }
+  ],
+  "tempoPgss": [
+    3.7269,
+    1.9029,
+    1.7783,
+    1.5491,
+    1.5695
+  ],
+  "pgbadger": {
+    "ocorrencias_pgbadger": 19117,
+    "consultas_pgbadger": 14,
+    "consultas_com_contagem_igual": 14,
+    "consultas_ferramenta": 14,
+    "apenas_no_pgbadger": 0
+  },
+  "tempoPgbadger": 8.25
+}

@@ -1,0 +1,1300 @@
+{
+  "ambiente": {
+    "servidor": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "cpu": "AMD Ryzen 5 3600 6-Core Processor              ",
+    "nucleos": 12,
+    "memoria_gb": 16,
+    "so": "Windows_NT 10.0.26220",
+    "execucoes": 7,
+    "indices_iniciais": [
+      "cliente_pkey",
+      "pedido_pkey",
+      "pgbench_accounts_pkey",
+      "pgbench_branches_pkey",
+      "pgbench_tellers_pkey",
+      "produto_pkey"
+    ]
+  },
+  "resultados": [
+    {
+      "caso": {
+        "id": "C1",
+        "titulo": "Filtro e ordenação sem índice",
+        "regra": "indice",
+        "consulta": "SELECT id, status, criado_em FROM pedido WHERE cliente_id = 4242 ORDER BY criado_em DESC LIMIT 20",
+        "etapas": [
+          {
+            "rotulo": "Índice sugerido",
+            "aplicarRecomendacoes": [
+              "indice"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em pedido",
+          "evidencia": "A consulta filtra pedido por cliente_id (e ordena por criado_em). Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (cliente_id, criado_em);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT id, status, criado_em FROM pedido WHERE cliente_id = 4242 ORDER BY criado_em DESC LIMIT 20;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT id, status, criado_em FROM pedido WHERE cliente_id = 4242 ORDER BY criado_em DESC LIMIT 20",
+        "tempo_ms": 12.897,
+        "faixa_ms": [
+          12.758,
+          13.483
+        ],
+        "planejamento_ms": 0.065,
+        "blocos": 2762,
+        "plano": [
+          "Seq Scan em pedido"
+        ],
+        "linhas": 5,
+        "resultado": "8936336f6563a6779606e73fa1a49d44"
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice sugerido",
+          "depois": {
+            "consulta": "SELECT id, status, criado_em FROM pedido WHERE cliente_id = 4242 ORDER BY criado_em DESC LIMIT 20",
+            "tempo_ms": 0.022,
+            "faixa_ms": [
+              0.021,
+              0.041
+            ],
+            "planejamento_ms": 0.035,
+            "blocos": 8,
+            "plano": [
+              "Bitmap Heap Scan em pedido"
+            ],
+            "linhas": 5,
+            "resultado": "8936336f6563a6779606e73fa1a49d44"
+          },
+          "ganho": 586.2272727272727,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON pedido (cliente_id, criado_em)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C2",
+        "titulo": "Junção sem índice na chave estrangeira",
+        "regra": "juncao",
+        "consulta": "SELECT p.id, sum(i.quantidade * i.preco) AS total FROM pedido p JOIN item_pedido i ON i.pedido_id = p.id WHERE p.cliente_id = 4242 GROUP BY p.id ORDER BY p.id",
+        "etapas": [
+          {
+            "rotulo": "Índice do filtro",
+            "aplicarRecomendacoes": [
+              "indice"
+            ]
+          },
+          {
+            "rotulo": "Índice do filtro e da junção",
+            "aplicarRecomendacoes": [
+              "juncao"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "leitura-excessiva",
+          "severidade": "alta",
+          "titulo": "Lê muito mais dados do que devolve",
+          "evidencia": "Cada execução acessa em média 10.382 blocos (cerca de 81 MB) para devolver 5 linhas.",
+          "acao": "Essa desproporção é típica de leitura sequencial da tabela. Confirme no EXPLAIN (procure Seq Scan com muitas linhas removidas pelo filtro). Se a consulta filtra os dados, um índice nas colunas do filtro reduz as páginas lidas; se ela precisa percorrer a tabela, como em relatórios e agregações, guarde o resultado pronto (visão materializada ou tabela de resumo)."
+        },
+        {
+          "id": "cache",
+          "severidade": "alta",
+          "titulo": "Muitos dados lidos do disco",
+          "evidencia": "65% dos blocos acessados não estavam em memória (33.990 blocos lidos do disco).",
+          "acao": "Reduza as páginas lidas com um índice mais seletivo. Se os dados acessados com frequência não cabem na memória, avalie aumentar shared_buffers (em geral, cerca de 25% da RAM) ou a memória do servidor."
+        },
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em pedido",
+          "evidencia": "A consulta filtra pedido por cliente_id. Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (cliente_id);"
+        },
+        {
+          "id": "juncao",
+          "severidade": "media",
+          "titulo": "Índices nas colunas de junção",
+          "evidencia": "A consulta relaciona tabelas pelas colunas item_pedido.pedido_id. Chaves estrangeiras não recebem índice automaticamente no PostgreSQL.",
+          "acao": "Garanta que essas colunas tenham índice, principalmente na tabela com mais linhas, para que a junção não precise ler a tabela inteira.",
+          "sql": "CREATE INDEX CONCURRENTLY ON item_pedido (pedido_id);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT p.id, sum(i.quantidade * i.preco) AS total FROM pedido p JOIN item_pedido i ON i.pedido_id = p.id WHERE p.cliente_id = 4242 GROUP BY p.id ORDER BY p.id;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT p.id, sum(i.quantidade * i.preco) AS total FROM pedido p JOIN item_pedido i ON i.pedido_id = p.id WHERE p.cliente_id = 4242 GROUP BY p.id ORDER BY p.id",
+        "tempo_ms": 68.796,
+        "faixa_ms": [
+          66.221,
+          71.803
+        ],
+        "planejamento_ms": 0.176,
+        "blocos": 10382,
+        "plano": [
+          "Seq Scan em item_pedido",
+          "Seq Scan em pedido"
+        ],
+        "linhas": 5,
+        "resultado": "686a171795f69d998dfeab074d37cdc7"
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice do filtro",
+          "depois": {
+            "consulta": "SELECT p.id, sum(i.quantidade * i.preco) AS total FROM pedido p JOIN item_pedido i ON i.pedido_id = p.id WHERE p.cliente_id = 4242 GROUP BY p.id ORDER BY p.id",
+            "tempo_ms": 50.693,
+            "faixa_ms": [
+              47.691,
+              53.091
+            ],
+            "planejamento_ms": 0.162,
+            "blocos": 7684,
+            "plano": [
+              "Seq Scan em item_pedido",
+              "Bitmap Heap Scan em pedido"
+            ],
+            "linhas": 5,
+            "resultado": "686a171795f69d998dfeab074d37cdc7"
+          },
+          "ganho": 1.3571104491744423,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON pedido (cliente_id)"
+          ]
+        },
+        {
+          "rotulo": "Índice do filtro e da junção",
+          "depois": {
+            "consulta": "SELECT p.id, sum(i.quantidade * i.preco) AS total FROM pedido p JOIN item_pedido i ON i.pedido_id = p.id WHERE p.cliente_id = 4242 GROUP BY p.id ORDER BY p.id",
+            "tempo_ms": 0.112,
+            "faixa_ms": [
+              0.061,
+              0.159
+            ],
+            "planejamento_ms": 0.18,
+            "blocos": 40,
+            "plano": [
+              "Bitmap Heap Scan em pedido",
+              "Bitmap Heap Scan em item_pedido"
+            ],
+            "linhas": 5,
+            "resultado": "686a171795f69d998dfeab074d37cdc7"
+          },
+          "ganho": 614.25,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON pedido (cliente_id)",
+            "CREATE INDEX CONCURRENTLY ON item_pedido (pedido_id)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C3",
+        "titulo": "Busca com curinga no início (ILIKE '%...%')",
+        "regra": "like-curinga",
+        "consulta": "SELECT id, nome FROM cliente WHERE nome ILIKE '%te 4242%' ORDER BY id",
+        "etapas": [
+          {
+            "rotulo": "Índice trigram (pg_trgm)",
+            "aplicarRecomendacoes": [
+              "like-curinga"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "like-curinga",
+          "severidade": "alta",
+          "titulo": "Busca com curinga no início do texto",
+          "evidencia": "A condição nome ILIKE '%...' começa com curinga, o que impede o uso de índices B-tree: a tabela é lida linha a linha.",
+          "acao": "Crie um índice trigram com a extensão pg_trgm, que atende LIKE e ILIKE com curinga em qualquer posição. Se a busca é por palavras inteiras, a busca textual do PostgreSQL (tsvector com índice GIN) é ainda mais eficiente.",
+          "sql": "CREATE EXTENSION IF NOT EXISTS pg_trgm;\nCREATE INDEX CONCURRENTLY ON cliente USING gin (nome gin_trgm_ops);"
+        },
+        {
+          "id": "cache",
+          "severidade": "media",
+          "titulo": "Muitos dados lidos do disco",
+          "evidencia": "20% dos blocos acessados não estavam em memória (594 blocos lidos do disco).",
+          "acao": "Reduza as páginas lidas com um índice mais seletivo. Se os dados acessados com frequência não cabem na memória, avalie aumentar shared_buffers (em geral, cerca de 25% da RAM) ou a memória do servidor."
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT id, nome FROM cliente WHERE nome ILIKE '%te 4242%' ORDER BY id;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT id, nome FROM cliente WHERE nome ILIKE '%te 4242%' ORDER BY id",
+        "tempo_ms": 22.838,
+        "faixa_ms": [
+          22.519,
+          24.018
+        ],
+        "planejamento_ms": 0.098,
+        "blocos": 594,
+        "plano": [
+          "Seq Scan em cliente"
+        ],
+        "linhas": 11,
+        "resultado": "2963f7d2f2fd8e52ff450f20be6fe95c"
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice trigram (pg_trgm)",
+          "depois": {
+            "consulta": "SELECT id, nome FROM cliente WHERE nome ILIKE '%te 4242%' ORDER BY id",
+            "tempo_ms": 0.275,
+            "faixa_ms": [
+              0.252,
+              0.314
+            ],
+            "planejamento_ms": 0.077,
+            "blocos": 31,
+            "plano": [
+              "Bitmap Heap Scan em cliente"
+            ],
+            "linhas": 11,
+            "resultado": "2963f7d2f2fd8e52ff450f20be6fe95c"
+          },
+          "ganho": 83.04727272727273,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+            "CREATE INDEX CONCURRENTLY ON cliente USING gin (nome gin_trgm_ops)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C4",
+        "titulo": "Função lower() sobre a coluna do filtro",
+        "regra": "funcao-coluna",
+        "consulta": "SELECT id, nome FROM cliente WHERE lower(email) = 'cliente4242@exemplo.com'",
+        "etapas": [
+          {
+            "rotulo": "Índice sobre a expressão",
+            "aplicarRecomendacoes": [
+              "funcao-coluna"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "funcao-coluna",
+          "severidade": "media",
+          "titulo": "Função aplicada à coluna do filtro",
+          "evidencia": "O filtro usa lower(email). Um índice na coluna email não é usado quando a coluna é transformada antes da comparação.",
+          "acao": "Crie um índice sobre a mesma expressão usada no filtro, ou compare a coluna sem transformá-la.",
+          "sql": "CREATE INDEX CONCURRENTLY ON cliente ((lower(email)));"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT id, nome FROM cliente WHERE lower(email) = 'cliente4242@exemplo.com';"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT id, nome FROM cliente WHERE lower(email) = 'cliente4242@exemplo.com'",
+        "tempo_ms": 16.331,
+        "faixa_ms": [
+          16.084,
+          17.129
+        ],
+        "planejamento_ms": 0.042,
+        "blocos": 594,
+        "plano": [
+          "Seq Scan em cliente"
+        ],
+        "linhas": 1,
+        "resultado": "701f1c3d82790b0282baa2ed998fe0e0"
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice sobre a expressão",
+          "depois": {
+            "consulta": "SELECT id, nome FROM cliente WHERE lower(email) = 'cliente4242@exemplo.com'",
+            "tempo_ms": 0.016,
+            "faixa_ms": [
+              0.015,
+              0.028
+            ],
+            "planejamento_ms": 0.025,
+            "blocos": 4,
+            "plano": [
+              "Index Scan em cliente (cliente_lower_idx)"
+            ],
+            "linhas": 1,
+            "resultado": "701f1c3d82790b0282baa2ed998fe0e0"
+          },
+          "ganho": 1020.6875,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON cliente ((lower(email)))"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C5",
+        "titulo": "Função date() sobre a coluna do filtro",
+        "regra": "funcao-coluna",
+        "consulta": "SELECT count(*) FROM pedido WHERE date(criado_em) = current_date - 10",
+        "etapas": [
+          {
+            "rotulo": "Reescrita como faixa",
+            "consulta": "SELECT count(*) FROM pedido WHERE criado_em >= current_date - 10 AND criado_em < current_date - 9"
+          },
+          {
+            "rotulo": "Reescrita e índice sugerido para a faixa",
+            "aplicarRecomendacoes": [
+              "indice"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "funcao-coluna",
+          "severidade": "media",
+          "titulo": "Função aplicada à coluna do filtro",
+          "evidencia": "O filtro usa date(criado_em). Um índice na coluna criado_em não é usado quando a coluna é transformada antes da comparação.",
+          "acao": "Reescreva a condição como uma faixa sobre a coluna original, que permite usar o índice da coluna.",
+          "sql": "-- em vez de date(criado_em) = $1:\nWHERE criado_em >= $1 AND criado_em < $1 + interval '1 day'"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM pedido WHERE date(criado_em) = current_date - 10;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT count(*) FROM pedido WHERE date(criado_em) = current_date - 10",
+        "tempo_ms": 31.157,
+        "faixa_ms": [
+          30.729,
+          31.671
+        ],
+        "planejamento_ms": 0.063,
+        "blocos": 2724,
+        "plano": [
+          "Seq Scan em pedido"
+        ],
+        "linhas": 1,
+        "resultado": "88a5147f011ecdbec5467bbc6482e605 (1076)"
+      },
+      "etapas": [
+        {
+          "rotulo": "Reescrita como faixa",
+          "depois": {
+            "consulta": "SELECT count(*) FROM pedido WHERE criado_em >= current_date - 10 AND criado_em < current_date - 9",
+            "tempo_ms": 22.977,
+            "faixa_ms": [
+              22.623,
+              24.527
+            ],
+            "planejamento_ms": 0.07,
+            "blocos": 2724,
+            "plano": [
+              "Seq Scan em pedido"
+            ],
+            "linhas": 1,
+            "resultado": "88a5147f011ecdbec5467bbc6482e605 (1076)"
+          },
+          "ganho": 1.3560081820951386,
+          "equivalente": true,
+          "aplicados": []
+        },
+        {
+          "rotulo": "Reescrita e índice sugerido para a faixa",
+          "depois": {
+            "consulta": "SELECT count(*) FROM pedido WHERE criado_em >= current_date - 10 AND criado_em < current_date - 9",
+            "tempo_ms": 0.252,
+            "faixa_ms": [
+              0.246,
+              0.257
+            ],
+            "planejamento_ms": 0.062,
+            "blocos": 471,
+            "plano": [
+              "Index Only Scan em pedido (pedido_criado_em_idx)"
+            ],
+            "linhas": 1,
+            "resultado": "88a5147f011ecdbec5467bbc6482e605 (1076)"
+          },
+          "ganho": 123.63888888888889,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON pedido (criado_em)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C6",
+        "titulo": "Paginação com OFFSET alto",
+        "regra": "offset",
+        "consulta": "SELECT id, cliente_id, status FROM pedido ORDER BY id LIMIT 50 OFFSET 200000",
+        "etapas": [
+          {
+            "rotulo": "Paginação por chave (keyset)",
+            "consulta": "SELECT id, cliente_id, status FROM pedido WHERE id > 200000 ORDER BY id LIMIT 50"
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "offset",
+          "severidade": "alta",
+          "titulo": "Paginação com OFFSET alto",
+          "evidencia": "Com OFFSET 200.000, o banco lê e descarta essa quantidade de linhas antes de devolver a página. Quanto mais avançada a página, mais lenta a consulta.",
+          "acao": "Use paginação por chave (keyset): guarde os valores da última linha da página e filtre a partir deles, com um índice nas colunas da ordenação.",
+          "sql": "-- ordenação por (criado_em, id):\nWHERE (criado_em, id) < ($ultimo_criado_em, $ultimo_id)\nORDER BY criado_em DESC, id DESC\nLIMIT 50"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT id, cliente_id, status FROM pedido ORDER BY id LIMIT 50 OFFSET 200000;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT id, cliente_id, status FROM pedido ORDER BY id LIMIT 50 OFFSET 200000",
+        "tempo_ms": 32.968,
+        "faixa_ms": [
+          32.547,
+          35.389
+        ],
+        "planejamento_ms": 0.053,
+        "blocos": 2856,
+        "plano": [
+          "Index Scan em pedido (pedido_pkey)"
+        ],
+        "linhas": 50,
+        "resultado": "1859b6ce70f791aba2db950f61f39d39"
+      },
+      "etapas": [
+        {
+          "rotulo": "Paginação por chave (keyset)",
+          "depois": {
+            "consulta": "SELECT id, cliente_id, status FROM pedido WHERE id > 200000 ORDER BY id LIMIT 50",
+            "tempo_ms": 0.028,
+            "faixa_ms": [
+              0.026,
+              0.043
+            ],
+            "planejamento_ms": 0.032,
+            "blocos": 5,
+            "plano": [
+              "Index Scan em pedido (pedido_pkey)"
+            ],
+            "linhas": 50,
+            "resultado": "1859b6ce70f791aba2db950f61f39d39"
+          },
+          "ganho": 1177.4285714285716,
+          "equivalente": true,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C7",
+        "titulo": "NOT IN com subconsulta",
+        "regra": "not-in",
+        "consulta": "SELECT count(*) FROM cliente WHERE id <= 1000 AND id NOT IN (SELECT cliente_id FROM pedido)",
+        "etapas": [
+          {
+            "rotulo": "Reescrita com NOT EXISTS",
+            "consulta": "SELECT count(*) FROM cliente c WHERE c.id <= 1000 AND NOT EXISTS (SELECT 1 FROM pedido p WHERE p.cliente_id = c.id)"
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "not-in",
+          "severidade": "media",
+          "titulo": "NOT IN com subconsulta",
+          "evidencia": "NOT IN (SELECT ...) não pode ser convertido em anti-join e, se a subconsulta devolver muitas linhas, é executado como um laço muito custoso. Também retorna vazio se houver algum NULL na subconsulta.",
+          "acao": "Reescreva com NOT EXISTS, que o PostgreSQL executa como anti-join usando os índices da subconsulta.",
+          "sql": "WHERE NOT EXISTS (SELECT 1 FROM outra o WHERE o.chave = t.chave)"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM cliente WHERE id <= 1000 AND id NOT IN (SELECT cliente_id FROM pedido);"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT count(*) FROM cliente WHERE id <= 1000 AND id NOT IN (SELECT cliente_id FROM pedido)",
+        "tempo_ms": 5588.534,
+        "faixa_ms": [
+          5453.229,
+          5850.853
+        ],
+        "planejamento_ms": 0.078,
+        "blocos": 2367,
+        "plano": [
+          "Index Only Scan em cliente (cliente_pkey)",
+          "Seq Scan em pedido"
+        ],
+        "linhas": 1,
+        "resultado": "10f7fe6f5f13b55fa92c39f2880e7f92 (0)"
+      },
+      "etapas": [
+        {
+          "rotulo": "Reescrita com NOT EXISTS",
+          "depois": {
+            "consulta": "SELECT count(*) FROM cliente c WHERE c.id <= 1000 AND NOT EXISTS (SELECT 1 FROM pedido p WHERE p.cliente_id = c.id)",
+            "tempo_ms": 44.595,
+            "faixa_ms": [
+              44.142,
+              44.855
+            ],
+            "planejamento_ms": 0.132,
+            "blocos": 2729,
+            "plano": [
+              "Seq Scan em pedido",
+              "Index Only Scan em cliente (cliente_pkey)"
+            ],
+            "linhas": 1,
+            "resultado": "10f7fe6f5f13b55fa92c39f2880e7f92 (0)"
+          },
+          "ganho": 125.31750196210336,
+          "equivalente": true,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C8",
+        "titulo": "Subconsulta executada para cada linha",
+        "regra": "subconsulta-select",
+        "consulta": "SELECT c.id, (SELECT count(*) FROM pedido p WHERE p.cliente_id = c.id) AS pedidos FROM cliente c WHERE c.cidade = 'Lajeado' ORDER BY c.id LIMIT 100",
+        "etapas": [
+          {
+            "rotulo": "Reescrita com junção e agrupamento",
+            "consulta": "SELECT c.id, count(p.id) AS pedidos FROM (SELECT id FROM cliente WHERE cidade = 'Lajeado' ORDER BY id LIMIT 100) c LEFT JOIN pedido p ON p.cliente_id = c.id GROUP BY c.id ORDER BY c.id"
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "leitura-excessiva",
+          "severidade": "alta",
+          "titulo": "Lê muito mais dados do que devolve",
+          "evidencia": "Cada execução acessa em média 272.409 blocos (cerca de 2.128 MB) para devolver 100 linhas.",
+          "acao": "Essa desproporção é típica de leitura sequencial da tabela. Confirme no EXPLAIN (procure Seq Scan com muitas linhas removidas pelo filtro). Se a consulta filtra os dados, um índice nas colunas do filtro reduz as páginas lidas; se ela precisa percorrer a tabela, como em relatórios e agregações, guarde o resultado pronto (visão materializada ou tabela de resumo)."
+        },
+        {
+          "id": "subconsulta-select",
+          "severidade": "media",
+          "titulo": "Subconsulta executada para cada linha",
+          "evidencia": "Há uma subconsulta na lista de colunas do SELECT, que é executada uma vez para cada linha do resultado.",
+          "acao": "Reescreva como junção (com GROUP BY, se for agregação) ou LEFT JOIN LATERAL, e garanta que a coluna usada para relacionar as tabelas tenha índice."
+        },
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em cliente",
+          "evidencia": "A consulta filtra cliente por cidade (e ordena por id). Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON cliente (cidade, id);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT c.id, (SELECT count(*) FROM pedido p WHERE p.cliente_id = c.id) AS pedidos FROM cliente c WHERE c.cidade = 'Lajeado' ORDER BY c.id LIMIT 100;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT c.id, (SELECT count(*) FROM pedido p WHERE p.cliente_id = c.id) AS pedidos FROM cliente c WHERE c.cidade = 'Lajeado' ORDER BY c.id LIMIT 100",
+        "tempo_ms": 1316.199,
+        "faixa_ms": [
+          1284.836,
+          1365.337
+        ],
+        "planejamento_ms": 0.086,
+        "blocos": 272409,
+        "plano": [
+          "Index Scan em cliente (cliente_pkey)",
+          "Seq Scan em pedido"
+        ],
+        "linhas": 100,
+        "resultado": "a30e3900b93d44c474872e04670ad5b6"
+      },
+      "etapas": [
+        {
+          "rotulo": "Reescrita com junção e agrupamento",
+          "depois": {
+            "consulta": "SELECT c.id, count(p.id) AS pedidos FROM (SELECT id FROM cliente WHERE cidade = 'Lajeado' ORDER BY id LIMIT 100) c LEFT JOIN pedido p ON p.cliente_id = c.id GROUP BY c.id ORDER BY c.id",
+            "tempo_ms": 42.163,
+            "faixa_ms": [
+              41.706,
+              43.642
+            ],
+            "planejamento_ms": 0.118,
+            "blocos": 2733,
+            "plano": [
+              "Seq Scan em pedido",
+              "Index Scan em cliente (cliente_pkey)"
+            ],
+            "linhas": 100,
+            "resultado": "a30e3900b93d44c474872e04670ad5b6"
+          },
+          "ganho": 31.21692004838366,
+          "equivalente": true,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C9",
+        "titulo": "Contagem de todas as linhas",
+        "regra": "count-total",
+        "consulta": "SELECT count(*) FROM item_pedido",
+        "etapas": [
+          {
+            "rotulo": "Estimativa do catálogo",
+            "consulta": "SELECT reltuples::bigint FROM pg_class WHERE oid = 'item_pedido'::regclass"
+          }
+        ],
+        "comparar": "aproximado"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "count-total",
+          "severidade": "media",
+          "titulo": "Contagem de todas as linhas da tabela",
+          "evidencia": "count(*) sem filtro em item_pedido: por causa do controle de concorrência (MVCC), o PostgreSQL precisa percorrer a tabela, ou um índice inteiro, para contar as linhas.",
+          "acao": "Se um valor aproximado é suficiente, use a estimativa mantida pelo próprio banco. Se o valor exato é necessário com frequência, mantenha um contador atualizado por gatilho ou guarde o resultado em cache.",
+          "sql": "SELECT reltuples::bigint AS estimativa FROM pg_class WHERE oid = 'item_pedido'::regclass;"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "O log não trouxe os valores desta consulta.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM item_pedido;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT count(*) FROM item_pedido",
+        "tempo_ms": 58.241,
+        "faixa_ms": [
+          50.95,
+          71.73
+        ],
+        "planejamento_ms": 0.04,
+        "blocos": 7644,
+        "plano": [
+          "Seq Scan em item_pedido"
+        ],
+        "linhas": 1,
+        "resultado": "72f841982adfd48c032fd3a20af94d13 (1200000)"
+      },
+      "etapas": [
+        {
+          "rotulo": "Estimativa do catálogo",
+          "depois": {
+            "consulta": "SELECT reltuples::bigint FROM pg_class WHERE oid = 'item_pedido'::regclass",
+            "tempo_ms": 0.011,
+            "faixa_ms": [
+              0.011,
+              0.012
+            ],
+            "planejamento_ms": 0.024,
+            "blocos": 3,
+            "plano": [
+              "Index Scan em pg_class (pg_class_oid_index)"
+            ],
+            "linhas": 1,
+            "resultado": "3b3a91ea148cf987e0dbfad611f3120c (1200000)"
+          },
+          "ganho": 5294.636363636364,
+          "equivalente": null,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C10",
+        "titulo": "Agregação sobre a tabela inteira",
+        "regra": "agregacao-total",
+        "consulta": "SELECT status, count(*) AS pedidos FROM pedido GROUP BY status ORDER BY status",
+        "etapas": [
+          {
+            "rotulo": "Visão materializada",
+            "preparar": [
+              "CREATE MATERIALIZED VIEW resumo_status AS SELECT status, count(*) AS pedidos FROM pedido GROUP BY status"
+            ],
+            "consulta": "SELECT status, pedidos FROM resumo_status ORDER BY status"
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "agregacao-total",
+          "severidade": "media",
+          "titulo": "Agregação sobre a tabela inteira",
+          "evidencia": "A consulta agrega dados sem nenhum filtro, ou seja, lê todas as linhas a cada execução.",
+          "acao": "Se o resultado não precisa estar atualizado ao segundo, guarde-o em uma visão materializada atualizada periodicamente. Se só o período recente interessa, filtre por uma coluna de data com índice.",
+          "sql": "CREATE MATERIALIZED VIEW resumo AS <esta consulta>;\nREFRESH MATERIALIZED VIEW CONCURRENTLY resumo; -- requer um índice único na visão"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "O log não trouxe os valores desta consulta.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT status, count(*) AS pedidos FROM pedido GROUP BY status ORDER BY status;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT status, count(*) AS pedidos FROM pedido GROUP BY status ORDER BY status",
+        "tempo_ms": 53.419,
+        "faixa_ms": [
+          52.938,
+          54.862
+        ],
+        "planejamento_ms": 0.061,
+        "blocos": 2732,
+        "plano": [
+          "Seq Scan em pedido"
+        ],
+        "linhas": 5,
+        "resultado": "c79a376c6cbfd427c8407817d704b0f9"
+      },
+      "etapas": [
+        {
+          "rotulo": "Visão materializada",
+          "depois": {
+            "consulta": "SELECT status, pedidos FROM resumo_status ORDER BY status",
+            "tempo_ms": 0.03,
+            "faixa_ms": [
+              0.014,
+              0.031
+            ],
+            "planejamento_ms": 0.012,
+            "blocos": 1,
+            "plano": [
+              "Seq Scan em resumo_status"
+            ],
+            "linhas": 5,
+            "resultado": "c79a376c6cbfd427c8407817d704b0f9"
+          },
+          "ganho": 1780.6333333333332,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE MATERIALIZED VIEW resumo_status AS SELECT status, count(*) AS pedidos FROM pedido GROUP BY status"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C11",
+        "titulo": "Amostra aleatória com ORDER BY random()",
+        "regra": "order-random",
+        "consulta": "SELECT pedido_id, produto_id FROM item_pedido ORDER BY random() LIMIT 5",
+        "etapas": [
+          {
+            "rotulo": "TABLESAMPLE",
+            "consulta": "SELECT pedido_id, produto_id FROM item_pedido TABLESAMPLE SYSTEM (0.1) LIMIT 5"
+          }
+        ],
+        "comparar": "nao_aplicavel"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "order-random",
+          "severidade": "alta",
+          "titulo": "Ordenação aleatória com ORDER BY random()",
+          "evidencia": "ORDER BY random() gera um valor para cada linha e ordena a tabela inteira para devolver poucas linhas.",
+          "acao": "Use TABLESAMPLE para amostras aproximadas, ou sorteie valores de id no intervalo existente e busque-os pela chave primária.",
+          "sql": "SELECT * FROM item_pedido TABLESAMPLE SYSTEM (1) LIMIT 10;"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT pedido_id, produto_id FROM item_pedido ORDER BY random() LIMIT 5;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT pedido_id, produto_id FROM item_pedido ORDER BY random() LIMIT 5",
+        "tempo_ms": 223.831,
+        "faixa_ms": [
+          221.963,
+          228.844
+        ],
+        "planejamento_ms": 0.043,
+        "blocos": 7644,
+        "plano": [
+          "Seq Scan em item_pedido"
+        ],
+        "linhas": 5,
+        "resultado": "20932d9014b233f8bdedcd370da141ca"
+      },
+      "etapas": [
+        {
+          "rotulo": "TABLESAMPLE",
+          "depois": {
+            "consulta": "SELECT pedido_id, produto_id FROM item_pedido TABLESAMPLE SYSTEM (0.1) LIMIT 5",
+            "tempo_ms": 0.013,
+            "faixa_ms": [
+              0.01,
+              0.022
+            ],
+            "planejamento_ms": 0.034,
+            "blocos": 1,
+            "plano": [
+              "Sample Scan em item_pedido"
+            ],
+            "linhas": 5,
+            "resultado": "7e55d9ebeecdcef305ab6dec0aa8f8e2"
+          },
+          "ganho": 17217.76923076923,
+          "equivalente": null,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C12",
+        "titulo": "Atualização sem índice no filtro",
+        "regra": "indice",
+        "consulta": "UPDATE pedido SET status = 'enviado' WHERE status = 'pago' AND cliente_id = 4242",
+        "etapas": [
+          {
+            "rotulo": "Índice sugerido",
+            "aplicarRecomendacoes": [
+              "indice"
+            ]
+          }
+        ],
+        "comparar": "nao_aplicavel",
+        "dml": true
+      },
+      "ocorrencias_log": 33,
+      "recomendacoes": [
+        {
+          "id": "variabilidade",
+          "severidade": "media",
+          "titulo": "Duração muito variável",
+          "evidencia": "Metade das execuções leva até 181,3 ms, mas 5% passam de 6,75 s e a mais lenta levou 9,14 s.",
+          "acao": "Como a instrução bloqueia linhas, a causa mais provável é a espera por bloqueios de outras transações: mantenha as transações curtas e ative log_lock_waits = on para registrar as esperas. Também pode haver planos diferentes conforme o valor dos parâmetros: compare o EXPLAIN de uma ocorrência rápida e o de uma lenta, usando o texto executado da lista de ocorrências."
+        },
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em pedido",
+          "evidencia": "A consulta filtra pedido por status e cliente_id. Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (status, cliente_id);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade (por isso ele está dentro de uma transação desfeita no final). Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "BEGIN;\nEXPLAIN (ANALYZE, BUFFERS) UPDATE pedido SET status = 'enviado' WHERE status = 'pago' AND cliente_id = 40563;\nROLLBACK;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "UPDATE pedido SET status = 'enviado' WHERE status = 'pago' AND cliente_id = 4242",
+        "tempo_ms": 22.095,
+        "faixa_ms": [
+          21.702,
+          26.027
+        ],
+        "planejamento_ms": 0.052,
+        "blocos": 2730,
+        "plano": [
+          "ModifyTable em pedido",
+          "Seq Scan em pedido"
+        ]
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice sugerido",
+          "depois": {
+            "consulta": "UPDATE pedido SET status = 'enviado' WHERE status = 'pago' AND cliente_id = 4242",
+            "tempo_ms": 0.047,
+            "faixa_ms": [
+              0.044,
+              0.063
+            ],
+            "planejamento_ms": 0.032,
+            "blocos": 28,
+            "plano": [
+              "ModifyTable em pedido",
+              "Index Scan em pedido (pedido_status_cliente_id_idx)"
+            ]
+          },
+          "ganho": 470.1063829787234,
+          "equivalente": null,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON pedido (status, cliente_id)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C13",
+        "titulo": "Exclusão com chave estrangeira sem índice",
+        "regra": "delete-fk",
+        "consulta": "DELETE FROM pedido WHERE id = 27",
+        "etapas": [
+          {
+            "rotulo": "Índice na chave estrangeira",
+            "preparar": [
+              "CREATE INDEX ON item_pedido (pedido_id)"
+            ]
+          }
+        ],
+        "comparar": "nao_aplicavel",
+        "dml": true
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "cache",
+          "severidade": "media",
+          "titulo": "Muitos dados lidos do disco",
+          "evidencia": "14% dos blocos acessados não estavam em memória (5.297 blocos lidos do disco).",
+          "acao": "Reduza as páginas lidas com um índice mais seletivo. Se os dados acessados com frequência não cabem na memória, avalie aumentar shared_buffers (em geral, cerca de 25% da RAM) ou a memória do servidor."
+        },
+        {
+          "id": "delete-fk",
+          "severidade": "baixa",
+          "titulo": "Exclusão: verifique os índices das chaves estrangeiras",
+          "evidencia": "Ao excluir de pedido, o PostgreSQL procura as linhas que a referenciam em outras tabelas. Sem índice na coluna da chave estrangeira, cada exclusão lê a tabela referenciadora inteira.",
+          "acao": "Liste as chaves estrangeiras que apontam para a tabela e não têm índice, e crie um índice na coluna de cada uma.",
+          "sql": "SELECT conrelid::regclass AS tabela, conname, pg_get_constraintdef(oid)\nFROM pg_constraint c\nWHERE contype = 'f' AND confrelid = 'pedido'::regclass\n  AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid\n                  AND (i.indkey::int2[])[0:array_length(c.conkey, 1) - 1] @> c.conkey);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade (por isso ele está dentro de uma transação desfeita no final). Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "BEGIN;\nEXPLAIN (ANALYZE, BUFFERS) DELETE FROM pedido WHERE id = 27;\nROLLBACK;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "DELETE FROM pedido WHERE id = 27",
+        "tempo_ms": 51.915,
+        "faixa_ms": [
+          50.532,
+          53.405
+        ],
+        "planejamento_ms": 0.052,
+        "blocos": 6,
+        "plano": [
+          "ModifyTable em pedido",
+          "Index Scan em pedido (pedido_pkey)"
+        ]
+      },
+      "etapas": [
+        {
+          "rotulo": "Índice na chave estrangeira",
+          "depois": {
+            "consulta": "DELETE FROM pedido WHERE id = 27",
+            "tempo_ms": 0.066,
+            "faixa_ms": [
+              0.039,
+              0.071
+            ],
+            "planejamento_ms": 0.023,
+            "blocos": 6,
+            "plano": [
+              "ModifyTable em pedido",
+              "Index Scan em pedido (pedido_pkey)"
+            ]
+          },
+          "ganho": 786.590909090909,
+          "equivalente": null,
+          "aplicados": [
+            "CREATE INDEX ON item_pedido (pedido_id)"
+          ]
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C14",
+        "titulo": "DISTINCT para remover duplicatas da junção",
+        "regra": "distinct-join",
+        "consulta": "SELECT DISTINCT c.id, c.nome FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE p.status = 'cancelado' AND c.cidade = 'Lajeado' ORDER BY c.id",
+        "etapas": [
+          {
+            "rotulo": "Reescrita com EXISTS",
+            "consulta": "SELECT c.id, c.nome FROM cliente c WHERE c.cidade = 'Lajeado' AND EXISTS (SELECT 1 FROM pedido p WHERE p.cliente_id = c.id AND p.status = 'cancelado') ORDER BY c.id"
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em pedido e cliente",
+          "evidencia": "A consulta filtra pedido por status e cliente por cidade. Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (status);\nCREATE INDEX CONCURRENTLY ON cliente (cidade);"
+        },
+        {
+          "id": "juncao",
+          "severidade": "media",
+          "titulo": "Índices nas colunas de junção",
+          "evidencia": "A consulta relaciona tabelas pelas colunas pedido.cliente_id. Chaves estrangeiras não recebem índice automaticamente no PostgreSQL.",
+          "acao": "Garanta que essas colunas tenham índice, principalmente na tabela com mais linhas, para que a junção não precise ler a tabela inteira.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (cliente_id);"
+        },
+        {
+          "id": "distinct-join",
+          "severidade": "baixa",
+          "titulo": "DISTINCT para remover duplicatas da junção",
+          "evidencia": "A consulta usa DISTINCT junto com JOIN, o que costuma indicar linhas duplicadas pela junção, que depois são ordenadas e eliminadas.",
+          "acao": "Se a outra tabela serve apenas para filtrar, troque o JOIN por EXISTS, que não gera duplicatas."
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT DISTINCT c.id, c.nome FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE p.status = 'cancelado' AND c.cidade = 'Lajeado' ORDER BY c.id;"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT DISTINCT c.id, c.nome FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE p.status = 'cancelado' AND c.cidade = 'Lajeado' ORDER BY c.id",
+        "tempo_ms": 45.182,
+        "faixa_ms": [
+          43.679,
+          47.601
+        ],
+        "planejamento_ms": 0.17,
+        "blocos": 3318,
+        "plano": [
+          "Seq Scan em pedido",
+          "Seq Scan em cliente"
+        ],
+        "linhas": 8037,
+        "resultado": "302796bbdbf4b2be0a7c4656d5c51cd3"
+      },
+      "etapas": [
+        {
+          "rotulo": "Reescrita com EXISTS",
+          "depois": {
+            "consulta": "SELECT c.id, c.nome FROM cliente c WHERE c.cidade = 'Lajeado' AND EXISTS (SELECT 1 FROM pedido p WHERE p.cliente_id = c.id AND p.status = 'cancelado') ORDER BY c.id",
+            "tempo_ms": 39.23,
+            "faixa_ms": [
+              37.917,
+              41.791
+            ],
+            "planejamento_ms": 0.15,
+            "blocos": 3318,
+            "plano": [
+              "Seq Scan em pedido",
+              "Seq Scan em cliente"
+            ],
+            "linhas": 8037,
+            "resultado": "302796bbdbf4b2be0a7c4656d5c51cd3"
+          },
+          "ganho": 1.15172062197298,
+          "equivalente": true,
+          "aplicados": []
+        }
+      ]
+    },
+    {
+      "caso": {
+        "id": "C15",
+        "titulo": "Filtros de baixa seletividade",
+        "regra": "indice",
+        "consulta": "SELECT count(*) FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE c.cidade = 'Lajeado' AND p.status = 'cancelado'",
+        "etapas": [
+          {
+            "rotulo": "Índices sugeridos",
+            "aplicarRecomendacoes": [
+              "indice",
+              "juncao"
+            ]
+          }
+        ],
+        "comparar": "identico"
+      },
+      "ocorrencias_log": 5,
+      "recomendacoes": [
+        {
+          "id": "indice",
+          "severidade": "media",
+          "titulo": "Índice para os filtros em cliente e pedido",
+          "evidencia": "A consulta filtra cliente por cidade e pedido por status. Sem um índice que comece por essas colunas, o PostgreSQL lê a tabela inteira (Seq Scan).",
+          "acao": "Se ainda não houver um índice equivalente (confira com \\d na tabela), crie o índice abaixo; com mais de uma coluna, as de igualdade vêm primeiro. CONCURRENTLY evita bloquear as escritas durante a criação. Depois confirme no EXPLAIN que o plano passou a usar Index Scan.",
+          "sql": "CREATE INDEX CONCURRENTLY ON cliente (cidade);\nCREATE INDEX CONCURRENTLY ON pedido (status);"
+        },
+        {
+          "id": "juncao",
+          "severidade": "media",
+          "titulo": "Índices nas colunas de junção",
+          "evidencia": "A consulta relaciona tabelas pelas colunas pedido.cliente_id. Chaves estrangeiras não recebem índice automaticamente no PostgreSQL.",
+          "acao": "Garanta que essas colunas tenham índice, principalmente na tabela com mais linhas, para que a junção não precise ler a tabela inteira.",
+          "sql": "CREATE INDEX CONCURRENTLY ON pedido (cliente_id);"
+        },
+        {
+          "id": "plano",
+          "severidade": "verificacao",
+          "titulo": "Confirme no plano de execução",
+          "evidencia": "Comando montado com o texto executado na ocorrência mais lenta, com os valores reais dos parâmetros.",
+          "acao": "Execute o comando em uma sessão do banco, de preferência fora do horário de pico, pois ANALYZE executa a consulta de verdade. Procure Seq Scan em tabelas grandes, estimativas de linhas muito diferentes das reais e etapas com muitos blocos lidos.",
+          "sql": "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE c.cidade = 'Lajeado' AND p.status = 'cancelado';"
+        }
+      ],
+      "acionada": true,
+      "antes": {
+        "consulta": "SELECT count(*) FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE c.cidade = 'Lajeado' AND p.status = 'cancelado'",
+        "tempo_ms": 34.551,
+        "faixa_ms": [
+          34.233,
+          36.605
+        ],
+        "planejamento_ms": 0.142,
+        "blocos": 3912,
+        "plano": [
+          "Seq Scan em pedido",
+          "Seq Scan em cliente"
+        ],
+        "linhas": 1,
+        "resultado": "c14f8411d9d288ec1902af0376ef6001 (16003)"
+      },
+      "etapas": [
+        {
+          "rotulo": "Índices sugeridos",
+          "depois": {
+            "consulta": "SELECT count(*) FROM cliente c JOIN pedido p ON p.cliente_id = c.id WHERE c.cidade = 'Lajeado' AND p.status = 'cancelado'",
+            "tempo_ms": 20.517,
+            "faixa_ms": [
+              20.148,
+              21.286
+            ],
+            "planejamento_ms": 0.187,
+            "blocos": 3387,
+            "plano": [
+              "Bitmap Heap Scan em pedido",
+              "Bitmap Heap Scan em cliente"
+            ],
+            "linhas": 1,
+            "resultado": "c14f8411d9d288ec1902af0376ef6001 (16003)"
+          },
+          "ganho": 1.6840181313057465,
+          "equivalente": true,
+          "aplicados": [
+            "CREATE INDEX CONCURRENTLY ON cliente (cidade)",
+            "CREATE INDEX CONCURRENTLY ON pedido (status)",
+            "CREATE INDEX CONCURRENTLY ON pedido (cliente_id)"
+          ]
+        }
+      ]
+    }
+  ]
+}

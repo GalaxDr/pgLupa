@@ -9,11 +9,17 @@
     "lint": "eslint",
     "collector": "tsx collector/index.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "test": "tsx --test \"tests/**/*.test.ts\""
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "carga": "tsx testes/scripts/carga.ts",
+    "cenario": "tsx testes/scripts/cenario.ts",
+    "avaliacao": "tsx testes/scripts/avaliacao.ts",
+    "recomendacoes": "tsx testes/scripts/avaliar-recomendacoes.ts",
+    "coletor:exemplo": "tsx testes/scripts/coletor.ts"
   },
   "dependencies": {
     "next": "16.4.5",
     "pg": "^8.23.1",
+    "pg-copy-streams": "^7.0.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "recharts": "^3.10.1",
@@ -23,6 +29,7 @@
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
+    "@types/pg-copy-streams": "^1.2.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
