@@ -16,6 +16,13 @@ A ferramenta funciona de dois modos:
   ocorrências em tempo real, com o histórico e os dados do `pg_stat_statements`. O envio de arquivos
   também está disponível em `/enviar`.
 
+**Site:** https://pglupa.yjwxjj.easypanel.host
+
+**Avaliação do TC:** os scripts e os resultados do Capítulo 5 (acurácia, comparação com o pgBadger,
+desempenho, impacto no servidor e casos de teste das recomendações) estão no ramo
+[`testes`](https://github.com/GalaxDr/slowquery-monitor/tree/testes/testes), na pasta `testes/`, junto
+com o servidor PostgreSQL de exemplo usado nos cenários.
+
 ## Arquitetura
 
 ```
@@ -46,40 +53,37 @@ A ferramenta funciona de dois modos:
 
 ## Requisitos
 
-- Node.js 20.6 ou superior
-- Docker Desktop (para o ambiente de exemplo com PostgreSQL 18)
+- Node.js 20.12 ou superior
+- Docker (Docker Desktop no Windows) para o banco da ferramenta, ou um PostgreSQL próprio informado
+  em `DATABASE_URL`
 
-## Como executar (Windows)
+## Como executar
 
-O jeito mais simples é dar dois cliques em **`iniciar.bat`**. O script confere se o Node.js e o Docker
-Desktop estão instalados (e oferece a instalação pelo winget), instala as dependências, sobe os
-bancos, cria as tabelas e abre o coletor, o painel e o navegador.
+Sem nenhuma configuração, a ferramenta sobe o seu banco de dados e já analisa arquivos de log enviados
+pela página `http://localhost:3000/enviar`. Para acompanhar um servidor continuamente, veja
+[Monitorando um servidor PostgreSQL](#monitorando-um-servidor-postgresql).
 
-Para fazer manualmente, no PowerShell:
+### Windows
 
-```powershell
+Dê dois cliques em **`iniciar.bat`**. O script confere se o Node.js e o Docker Desktop estão
+instalados (e oferece a instalação pelo winget), instala as dependências, sobe o banco da ferramenta,
+cria as tabelas e abre o painel no navegador. Se o `.env` informar `LOG_DIR`, abre também o coletor.
+
+### Linux (ou manualmente no Windows)
+
+```sh
 npm install
-
-# sobe o PostgreSQL monitorado (porta 5434) e o da ferramenta (porta 5433);
-# na primeira vez, o servidor monitorado cria um banco de exemplo com cerca de 1,6 milhão de linhas
-docker compose up -d
-
-# cria as tabelas no banco da ferramenta
-npm run db:migrate
+docker compose up -d     # banco da ferramenta (PostgreSQL 18, porta 5433)
+npm run db:migrate       # cria as tabelas
+npm run dev              # painel em http://localhost:3000
 ```
 
-Depois, em três terminais:
+Para usar em produção, troque `npm run dev` por `npm run build && npm start`. Com o `.env`
+configurado, o coletor roda em outro terminal com `npm run collector`.
 
-```powershell
-npm run collector     # 1. coletor: acompanha docker/logs e grava as ocorrências
-npm run dev           # 2. painel: http://localhost:3000
-npm run carga         # 3. opcional: gera consultas lentas no servidor de exemplo por 60 s (npm run carga -- 300 para 5 min)
-```
+> A porta 5433 evita conflito com um PostgreSQL já instalado na máquina, que normalmente usa a 5432.
 
-> As portas 5434 e 5433 foram escolhidas para não conflitar com um PostgreSQL instalado no
-> Windows, que normalmente usa a 5432.
-
-## Monitorando outro servidor PostgreSQL
+## Monitorando um servidor PostgreSQL
 
 No `postgresql.conf` do servidor a ser monitorado:
 
@@ -96,15 +100,20 @@ compute_query_id = on                   # query_id no log, para associar ao pg_s
 shared_preload_libraries = 'pg_stat_statements'
 ```
 
-Depois, crie um `.env` na raiz do projeto apenas com o que for diferente do ambiente de exemplo,
-normalmente o diretório dos logs (o coletor precisa de permissão de leitura) e a conexão para os
-snapshots, com um usuário com o papel `pg_read_all_stats`:
+Depois, crie um `.env` na raiz do projeto com o diretório dos logs e, opcionalmente, a conexão para
+os snapshots do `pg_stat_statements`:
 
 ```ini
 SERVIDOR_NOME=producao
-LOG_DIR=D:/postgres/dados/log
-MONITORADO_URL=postgres://monitor:senha@servidor:5432/banco
+# no Windows, por exemplo: C:/Program Files/PostgreSQL/18/data/log
+LOG_DIR=/var/lib/postgresql/18/main/log
+MONITORADO_URL=postgres://monitor:senha@127.0.0.1:5432/banco
 ```
+
+O coletor precisa de permissão de leitura nesse diretório. No Linux, o mais simples é definir
+`log_file_mode = 0640` no `postgresql.conf` e incluir o usuário que executa o coletor no grupo
+`postgres` (`sudo usermod -aG postgres $USER`). Para os snapshots, crie um usuário com o papel
+`pg_read_all_stats`:
 
 ```sql
 CREATE EXTENSION pg_stat_statements;
@@ -119,15 +128,15 @@ Os logs podem conter dados pessoais nos valores das consultas (nomes, e-mails, d
 ## Configuração
 
 Todas as variáveis são opcionais e lidas em um único lugar, `src/lib/config.ts`. Os valores padrão
-correspondem ao ambiente de exemplo do `docker compose`, por isso ele funciona sem `.env`.
+permitem usar a ferramenta sem `.env`; para o coletor, basta informar `LOG_DIR`.
 
 | Variável | Padrão | Descrição |
 | --- | --- | --- |
 | `DATABASE_URL` | banco `ferramenta` do docker compose | Conexão com o banco da ferramenta |
 | `SERVIDOR_NOME` | `local` | Nome do servidor monitorado no painel |
-| `LOG_DIR` | `./docker/logs` | Diretório dos arquivos de log |
+| `LOG_DIR` | | Diretório dos arquivos de log (necessário para o coletor) |
 | `LOG_FORMAT` | pela extensão dos arquivos | `csvlog` ou `jsonlog` |
-| `MONITORADO_URL` | servidor de exemplo | Conexão para os snapshots do `pg_stat_statements` (vazia desativa) |
+| `MONITORADO_URL` | | Conexão para os snapshots do `pg_stat_statements` (opcional) |
 | `ANONIMIZAR_VALORES` | `false` | Grava apenas o texto normalizado, sem os valores |
 | `RETENCAO_DIAS` | `30` | Dias até as ocorrências e os snapshots serem removidos (0 = nunca) |
 | `INTERVALO_LEITURA_MS` / `INTERVALO_SNAPSHOT_MS` | `2000` / `60000` | Intervalos do coletor |
@@ -151,8 +160,7 @@ para o mesmo valor de `MAX_UPLOAD_MB`.
 ```
 collector/            coletor (leitura incremental, interpretação do log, snapshots, retenção)
 db/migrations/        esquema do banco da ferramenta
-docker/               configuração do ambiente de exemplo
-scripts/              migração do banco e gerador de carga de exemplo
+scripts/              migração do banco
 src/app/              páginas (visão geral, consultas, detalhe, coletor, envio e análises) e rotas de API
 src/components/       componentes de interface e gráficos
 src/lib/              acesso ao banco, consultas do painel, normalização, envio de arquivos e formatação
@@ -171,8 +179,7 @@ tests/                testes automatizados (npm test)
 ## Testes
 
 ```powershell
-npm test      # testes automatizados do coletor e da normalização
+npm test      # testes automatizados do coletor, da normalização, do diagnóstico e da anonimização
 ```
 
-Os scripts usados na avaliação do TC (acurácia, completude, tempo, sobrecarga e comparação com o
-pgBadger) estão no branch [`avaliacao-tc`](../../tree/avaliacao-tc).
+A avaliação do TC fica no ramo `testes` (link no início deste arquivo).

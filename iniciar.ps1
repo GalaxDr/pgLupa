@@ -1,5 +1,6 @@
 ﻿# Prepara e inicia a ferramenta no Windows: confere o Node.js e o Docker Desktop, instala as
-# dependências, sobe os bancos, cria as tabelas e abre o coletor, o painel e o navegador.
+# dependências, sobe o banco da ferramenta, cria as tabelas e abre o painel e o navegador. Se o .env
+# informar LOG_DIR, abre também o coletor.
 # Uso: dois cliques em iniciar.bat (ou: powershell -ExecutionPolicy Bypass -File iniciar.ps1)
 
 $ErrorActionPreference = 'Continue'
@@ -83,36 +84,43 @@ try {
     Write-Host 'dependências já instaladas'
   }
 
-  Etapa 'Subindo os bancos de dados (docker compose)'
-  docker compose up -d monitorado ferramenta
+  Etapa 'Subindo o banco de dados da ferramenta (docker compose)'
+  docker compose up -d
   if ($LASTEXITCODE -ne 0) { Falhar 'docker compose up falhou. Veja a mensagem acima (por exemplo, porta em uso).' }
   # o servidor temporário da inicialização não aceita conexões TCP; o teste por 127.0.0.1 só passa no servidor definitivo
   $ok = Aguardar 'o banco da ferramenta' { docker exec sqm-ferramenta pg_isready -h 127.0.0.1 -U ferramenta *> $null; $LASTEXITCODE -eq 0 } 120
   if (-not $ok) { Falhar 'O banco da ferramenta não ficou pronto. Veja: docker logs sqm-ferramenta' }
-  Write-Host 'Na primeira execução, o servidor monitorado cria o banco de exemplo (cerca de 1 a 3 minutos).'
-  $ok = Aguardar 'o servidor monitorado' { docker exec sqm-monitorado pg_isready -h 127.0.0.1 -U postgres *> $null; $LASTEXITCODE -eq 0 } 600
-  if (-not $ok) { Falhar 'O servidor monitorado não ficou pronto. Veja: docker logs sqm-monitorado' }
 
   Etapa 'Criando as tabelas da ferramenta'
   npm run db:migrate
   if ($LASTEXITCODE -ne 0) { Falhar 'A migração do banco falhou.' }
 
-  Etapa 'Abrindo o coletor e o painel'
+  # o coletor só é iniciado quando o .env informa o diretório dos logs de um servidor
+  $comColetor = (Test-Path '.env') -and [bool](Select-String -Path '.env' -Pattern '^\s*LOG_DIR\s*=\s*\S' -Quiet)
   $raiz = $PSScriptRoot
-  Start-Process powershell -ArgumentList '-NoExit', '-Command', "[Console]::OutputEncoding = [Text.Encoding]::UTF8; `$Host.UI.RawUI.WindowTitle = 'Coletor'; Set-Location '$raiz'; npm run collector 2>&1 | Tee-Object -FilePath logs\coletor.log"
+  if ($comColetor) {
+    Etapa 'Abrindo o coletor e o painel'
+    Start-Process powershell -ArgumentList '-NoExit', '-Command', "[Console]::OutputEncoding = [Text.Encoding]::UTF8; `$Host.UI.RawUI.WindowTitle = 'Coletor'; Set-Location '$raiz'; npm run collector 2>&1 | Tee-Object -FilePath logs\coletor.log"
+  } else {
+    Etapa 'Abrindo o painel'
+  }
   Start-Process powershell -ArgumentList '-NoExit', '-Command', "[Console]::OutputEncoding = [Text.Encoding]::UTF8; `$Host.UI.RawUI.WindowTitle = 'Painel'; Set-Location '$raiz'; npm run dev 2>&1 | Tee-Object -FilePath logs\painel.log"
   $ok = Aguardar 'o painel em http://localhost:3000' {
-    try { (Invoke-WebRequest -Uri 'http://localhost:3000/coletor' -UseBasicParsing -TimeoutSec 10).StatusCode -eq 200 } catch { $false }
+    try { (Invoke-WebRequest -Uri 'http://localhost:3000/enviar' -UseBasicParsing -TimeoutSec 10).StatusCode -eq 200 } catch { $false }
   } 180
   if (-not $ok) { Falhar 'O painel não respondeu. Veja a janela "Painel" ou o arquivo logs\painel.log.' }
-  Start-Process 'http://localhost:3000'
+  if ($comColetor) { Start-Process 'http://localhost:3000' } else { Start-Process 'http://localhost:3000/enviar' }
 
   Write-Host ''
   Write-Host 'Tudo pronto!' -ForegroundColor Green
   Write-Host '  Painel:   http://localhost:3000 (janela "Painel")'
-  Write-Host '  Coletor:  janela "Coletor"'
-  Write-Host '  Para gerar consultas lentas de exemplo, execute npm run carga em outro terminal.'
-  Write-Host '  Para encerrar, feche as janelas "Coletor" e "Painel". Os bancos continuam no Docker (docker compose stop para parar).'
+  if ($comColetor) {
+    Write-Host '  Coletor:  janela "Coletor"'
+  } else {
+    Write-Host '  Envie um arquivo de log em http://localhost:3000/enviar para gerar o relatório.'
+    Write-Host '  Para acompanhar um servidor continuamente, informe LOG_DIR no .env (veja .env.example) e execute de novo.'
+  }
+  Write-Host '  Para encerrar, feche as janelas abertas. O banco continua no Docker (docker compose stop para parar).'
   Stop-Transcript | Out-Null
   Read-Host 'Pressione Enter para fechar esta janela'
 } catch {

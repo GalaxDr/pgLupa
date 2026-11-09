@@ -9,7 +9,6 @@
     "lint": "eslint",
     "collector": "tsx collector/index.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "carga": "tsx scripts/carga.ts",
     "test": "tsx --test \"tests/**/*.test.ts\""
   },
   "dependencies": {

@@ -1,9 +1,8 @@
 /**
  * Configuração da ferramenta, lida das variáveis de ambiente.
  *
- * Todas as variáveis são opcionais: os valores padrão correspondem ao ambiente de exemplo do
- * docker compose, de modo que a ferramenta funciona sem nenhum arquivo .env. Para monitorar outro
- * servidor, crie um .env (veja .env.example) apenas com o que for diferente.
+ * Sem nenhum arquivo .env, a ferramenta usa o banco do docker compose e funciona pelo envio de
+ * arquivos de log. Para o coletor acompanhar um servidor, basta informar LOG_DIR (veja .env.example).
  */
 import path from "node:path";
 import os from "node:os";
@@ -32,18 +31,18 @@ export const config = {
   get servidorNome() {
     return texto("SERVIDOR_NOME", "local");
   },
-  /** diretório dos arquivos de log do servidor monitorado */
+  /** diretório dos arquivos de log do servidor monitorado (necessário para o coletor) */
   get diretorioLogs() {
-    return texto("LOG_DIR", "./docker/logs");
+    return process.env.LOG_DIR || undefined;
   },
   /** csvlog ou jsonlog; vazio: identificado pela extensão dos arquivos do diretório */
   get formatoLog() {
     const f = process.env.LOG_FORMAT;
     return f === "csvlog" || f === "jsonlog" ? f : undefined;
   },
-  /** conexão somente leitura para os snapshots do pg_stat_statements; vazia desativa os snapshots */
+  /** conexão somente leitura para os snapshots do pg_stat_statements (opcional) */
   get monitoradoUrl() {
-    return texto("MONITORADO_URL", "postgres://monitor:monitor@127.0.0.1:5434/loja");
+    return process.env.MONITORADO_URL || undefined;
   },
   /** grava apenas o texto normalizado, sem os valores das consultas */
   get anonimizar() {
@@ -81,8 +80,4 @@ export const config = {
     return path.resolve(/*turbopackIgnore: true*/ texto("DIR_UPLOADS", path.join(os.tmpdir(), "sqm-uploads")));
   },
 
-  // ---- gerador de carga de exemplo
-  get cargaUrl() {
-    return texto("CARGA_URL", "postgres://postgres:postgres@127.0.0.1:5434/loja");
-  },
 };

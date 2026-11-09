@@ -75,7 +75,7 @@ async function cicloDeSnapshots() {
   const conexao = config.monitoradoUrl;
   const nome = config.servidorNome;
   if (!conexao || !nome) {
-    console.log("MONITORADO_URL vazia: snapshots do pg_stat_statements desativados");
+    console.log("MONITORADO_URL não definida: snapshots do pg_stat_statements desativados");
     return;
   }
   while (!encerrando) {
@@ -124,7 +124,7 @@ async function main() {
   await registrarServidorDoAmbiente();
   const servidores = await servidoresAtivos();
   if (servidores.length === 0) {
-    console.error("nenhum servidor ativo cadastrado; defina SERVIDOR_NOME e LOG_DIR");
+    console.error("LOG_DIR não definido: crie um arquivo .env com o diretório dos logs do PostgreSQL (veja .env.example)");
     process.exit(1);
   }
   for (const s of servidores) console.log(`monitorando ${s.nome}: ${s.diretorio_logs} (${s.formato_log})`);
