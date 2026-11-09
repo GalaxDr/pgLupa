@@ -107,6 +107,10 @@ CREATE ROLE monitor LOGIN PASSWORD '...';
 GRANT pg_read_all_stats TO monitor;
 ```
 
+Os logs podem conter dados pessoais nos valores das consultas (nomes, e-mails, documentos). Com
+`ANONIMIZAR_VALORES=true`, o coletor grava apenas o texto normalizado, com os valores trocados por
+`$1`, `$2`... No site, a mesma opção aparece na página de envio e vem marcada por padrão.
+
 ## Publicação do site
 
 O `Dockerfile` gera a imagem da aplicação web, que pode ser publicada em qualquer serviço com Docker

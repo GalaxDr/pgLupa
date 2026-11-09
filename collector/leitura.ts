@@ -12,6 +12,8 @@ export interface Servidor {
   nome: string;
   diretorio_logs: string;
   formato_log: FormatoLog;
+  /** grava o texto normalizado no lugar do texto executado, sem os valores das consultas */
+  anonimizar?: boolean;
 }
 
 // quantidade de bytes lidos do arquivo por transação (padrão 1 MB)
@@ -83,7 +85,7 @@ async function lerArquivo(servidor: Servidor, caminho: string, nome: string, tam
       const client = await db.connect();
       try {
         await client.query("BEGIN");
-        gravadas += await gravarOcorrencias(client, servidor.id, registros);
+        gravadas += await gravarOcorrencias(client, servidor.id, registros, servidor.anonimizar ?? false);
         posicao += bytesConsumidos;
         await client.query(
           "UPDATE arquivo_log SET posicao_lida = $2, tamanho = $3, atualizado_em = now() WHERE id = $1",
@@ -116,7 +118,7 @@ interface Ocorrencia {
  * Converte os registros de consultas lentas em ocorrências e os grava, junto com a
  * consulta normalizada correspondente, na mesma transação que atualiza a posição de leitura.
  */
-async function gravarOcorrencias(client: PoolClient, servidorId: number, registros: RegistroLog[]): Promise<number> {
+async function gravarOcorrencias(client: PoolClient, servidorId: number, registros: RegistroLog[], anonimizar: boolean): Promise<number> {
   const ocorrencias: Ocorrencia[] = [];
   for (const r of registros) {
     if (r.severidade && r.severidade !== "LOG") continue;
@@ -183,7 +185,7 @@ async function gravarOcorrencias(client: PoolClient, servidorId: number, registr
       ocorrencias.map((o) => o.registro.aplicacao),
       ocorrencias.map((o) => o.registro.hostCliente),
       ocorrencias.map((o) => o.registro.pid),
-      ocorrencias.map((o) => o.textoExecutado),
+      ocorrencias.map((o) => (anonimizar ? o.textoNormalizado : o.textoExecutado)),
     ],
   );
   return ocorrencias.length;

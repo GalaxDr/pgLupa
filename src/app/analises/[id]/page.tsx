@@ -37,6 +37,7 @@ async function Relatorio({ params, searchParams }: Pick<PageProps<"/analises/[id
       <p className="mt-1 text-xs text-zinc-500">
         {analise.formato_log} · {formatarBytes(analise.tamanho)} · enviado em {formatarDataHora(analise.criada_em)} · disponível até{" "}
         {formatarDataHora(analise.expira_em)}
+        {analise.anonimizada && " · valores das consultas não armazenados"}
       </p>
     </div>
   );

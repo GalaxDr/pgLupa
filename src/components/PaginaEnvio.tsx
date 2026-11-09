@@ -20,7 +20,7 @@ export function PaginaEnvio({ limiteMb, retencaoHoras }: { limiteMb: number; ret
       <p className="text-center text-xs text-zinc-500">
         O relatório fica disponível por {retencao} em um link exclusivo, que só quem tiver o endereço pode abrir. O
         arquivo enviado é apagado assim que o processamento termina. Como o log contém o texto das consultas, inclusive
-        valores informados nelas, evite enviar logs com dados sensíveis.
+        valores informados nelas, mantenha marcada a opção acima se elas puderem conter dados pessoais.
       </p>
 
       <Cartao titulo="Como gerar o arquivo de log" descricao="Configuração no postgresql.conf do servidor (requer recarregar a configuração)">

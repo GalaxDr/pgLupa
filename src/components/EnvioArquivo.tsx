@@ -13,6 +13,7 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<Estado>({ tipo: "parado" });
   const [arrastando, setArrastando] = useState(false);
+  const [anonimizar, setAnonimizar] = useState(true);
 
   // ao voltar para esta página pelo histórico do navegador, a área de envio recomeça do zero
   useEffect(() => {
@@ -35,7 +36,7 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
     }
     setEstado({ tipo: "enviando", progresso: 0, nome: arquivo.name });
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `/api/analises?nome=${encodeURIComponent(arquivo.name)}`);
+    xhr.open("POST", `/api/analises?nome=${encodeURIComponent(arquivo.name)}${anonimizar ? "&anonimizar=1" : ""}`);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setEstado({ tipo: "enviando", progresso: e.loaded / e.total, nome: arquivo.name });
     };
@@ -112,6 +113,22 @@ export function EnvioArquivo({ limiteMb }: { limiteMb: number }) {
           e.target.value = "";
         }}
       />
+      <label className="mt-3 flex items-start gap-2 text-sm text-zinc-700">
+        <input
+          type="checkbox"
+          checked={anonimizar}
+          disabled={enviando}
+          onChange={(e) => setAnonimizar(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-[var(--color-destaque)]"
+        />
+        <span>
+          Não armazenar os valores das consultas
+          <span className="block text-xs text-zinc-500">
+            Guarda apenas o texto normalizado (valores trocados por $1, $2...), protegendo dados pessoais que estejam nas consultas. Desmarque para manter os
+            valores, que permitem reproduzir a consulta e analisar o plano de execução com os dados reais.
+          </span>
+        </span>
+      </label>
       {estado.tipo === "erro" && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{estado.mensagem}</p>}
     </div>
   );

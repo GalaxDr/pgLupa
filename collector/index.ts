@@ -33,7 +33,9 @@ async function servidoresAtivos(): Promise<Servidor[]> {
   const { rows } = await pool().query<Servidor>(
     "SELECT id, nome, diretorio_logs, formato_log FROM servidor WHERE ativo ORDER BY id",
   );
-  return rows;
+  // ANONIMIZAR_VALORES=true: não armazena os valores das consultas (apenas o texto normalizado)
+  const anonimizar = process.env.ANONIMIZAR_VALORES === "true";
+  return rows.map((s) => ({ ...s, anonimizar }));
 }
 
 async function cicloDeLeitura() {

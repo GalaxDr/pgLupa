@@ -33,6 +33,7 @@ export interface Analise {
   criada_em: Date;
   concluida_em: Date | null;
   expira_em: Date;
+  anonimizada: boolean;
   /** posição de leitura do arquivo, para indicar o progresso do processamento */
   posicao_lida: number | null;
 }
@@ -63,7 +64,12 @@ export async function obterAnalise(id: string): Promise<Analise | null> {
  * Recebe o arquivo enviado, grava-o em disco e coloca a análise na fila de processamento.
  * Arquivos .gz são descompactados durante o recebimento.
  */
-export async function receberUpload(nomeOriginal: string, corpo: Readable, tamanhoDeclarado: number | null): Promise<string> {
+export async function receberUpload(
+  nomeOriginal: string,
+  corpo: Readable,
+  tamanhoDeclarado: number | null,
+  anonimizar = false,
+): Promise<string> {
   const limite = LIMITE_UPLOAD_MB() * 1024 * 1024;
   if (tamanhoDeclarado !== null && tamanhoDeclarado > limite) {
     throw new ErroUpload(`O arquivo excede o limite de ${LIMITE_UPLOAD_MB()} MB.`, 413);
@@ -80,9 +86,9 @@ export async function receberUpload(nomeOriginal: string, corpo: Readable, taman
     [`analise-${id}`, dir],
   );
   await db.query(
-    `INSERT INTO analise (id, servidor_id, nome_arquivo, formato_log, expira_em)
-     VALUES ($1, $2, $3, 'csvlog', now() + make_interval(hours => $4))`,
-    [id, rows[0].id, nome, RETENCAO_ANALISE_HORAS()],
+    `INSERT INTO analise (id, servidor_id, nome_arquivo, formato_log, anonimizada, expira_em)
+     VALUES ($1, $2, $3, 'csvlog', $5, now() + make_interval(hours => $4))`,
+    [id, rows[0].id, nome, RETENCAO_ANALISE_HORAS(), anonimizar],
   );
 
   const temporario = path.join(dir, "recebendo.tmp");
@@ -153,7 +159,7 @@ async function processar(id: string) {
   const servidor = rows[0];
   try {
     await db.query("UPDATE analise SET situacao = 'processando' WHERE id = $1", [id]);
-    const ocorrencias = await lerServidor(servidor);
+    const ocorrencias = await lerServidor({ ...servidor, anonimizar: a.anonimizada });
     await db.query(
       "UPDATE analise SET situacao = 'concluida', ocorrencias = $2, concluida_em = now() WHERE id = $1",
       [id, ocorrencias],

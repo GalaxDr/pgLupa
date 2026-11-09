@@ -675,6 +675,8 @@ function recomendacaoPlano(d: DadosDiagnostico): Recomendacao {
 }
 
 export function diagnosticar(d: DadosDiagnostico): Recomendacao[] {
+  // com os valores não armazenados (anonimização), o texto executado é o próprio texto normalizado
+  if (d.exemplo && d.exemplo.trim() === d.texto.trim()) d = { ...d, exemplo: null };
   const r = [...regrasDasEstatisticas(d), ...regrasDoTexto(d)];
   r.sort((a, b) => ORDEM[a.severidade] - ORDEM[b.severidade]);
   if (!r.some((x) => x.id === "manutencao" || x.id === "commit")) r.push(recomendacaoPlano(d));
