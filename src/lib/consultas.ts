@@ -26,7 +26,7 @@ function condicoes(f: Filtros, consultaId?: number, incluirPeriodo = true) {
 
 const sqlWhere = (where: string[]) => (where.length ? `WHERE ${where.join(" AND ")}` : "");
 
-export interface Resumo {
+interface Resumo {
   ocorrencias: number;
   consultas: number;
   tempo_total_ms: number;
@@ -145,7 +145,7 @@ export async function listarConsultas(f: Filtros, limite = 100): Promise<LinhaCo
   return rows;
 }
 
-export interface Consulta {
+interface Consulta {
   id: number;
   query_id: string | null;
   fingerprint: string;
@@ -159,7 +159,7 @@ export async function obterConsulta(id: number): Promise<Consulta | null> {
   return rows[0] ?? null;
 }
 
-export interface LinhaOcorrencia {
+interface LinhaOcorrencia {
   id: number;
   data_hora: Date;
   duracao_ms: number;
@@ -239,7 +239,7 @@ export async function obterDistribuicao(
   return rows;
 }
 
-export interface EstatisticaPgss {
+interface EstatisticaPgss {
   coletado_em: Date;
   calls: number;
   total_exec_time: number;
@@ -304,7 +304,7 @@ export async function obterOpcoesFiltro(servidorId?: number): Promise<OpcoesFilt
   return { servidores: s.rows, bancos: b.rows.map((r) => r.v), usuarios: u.rows.map((r) => r.v) };
 }
 
-export interface EstadoServidor {
+interface EstadoServidor {
   id: number;
   nome: string;
   diretorio_logs: string;

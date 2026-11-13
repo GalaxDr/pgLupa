@@ -12,7 +12,7 @@
  */
 const RE_DURACAO = /^duration: ([\d.]+) ms\s+(statement|execute|parse|bind)([^:]*):\s([\s\S]*)$/;
 
-export interface ConsultaLenta {
+interface ConsultaLenta {
   duracaoMs: number;
   etapa: "statement" | "execute";
   sql: string;

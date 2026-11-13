@@ -19,9 +19,9 @@ export const RETENCAO_ANALISE_HORAS = () => config.retencaoAnaliseHoras;
 
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export type Situacao = "recebendo" | "na_fila" | "processando" | "concluida" | "erro";
+type Situacao = "recebendo" | "na_fila" | "processando" | "concluida" | "erro";
 
-export interface Analise {
+interface Analise {
   id: string;
   servidor_id: number;
   nome_arquivo: string;

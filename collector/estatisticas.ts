@@ -1,10 +1,10 @@
 import { Client } from "pg";
 import { pool } from "../src/lib/db";
 
-export const LIMITE_CONSULTAS = 500;
+const LIMITE_CONSULTAS = 500;
 
 /** Estatísticas agregadas por query_id, das consultas com maior tempo total. */
-export const SQL_PG_STAT_STATEMENTS = `SELECT queryid::text AS query_id,
+const SQL_PG_STAT_STATEMENTS = `SELECT queryid::text AS query_id,
          sum(calls)::bigint AS calls,
          sum(total_exec_time) AS total_exec_time,
          sum(total_exec_time) / NULLIF(sum(calls), 0) AS mean_exec_time,
