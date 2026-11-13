@@ -25,7 +25,8 @@ import { pool } from "../../src/lib/db";
 
 const argumentos = process.argv.slice(2);
 // --limite-100: acrescenta ao cenário impacto as configurações com limite de 100 ms (teste em Linux, Tabela 15)
-const limite100 = argumentos.includes("--limite-100");
+// no PowerShell, o npm pode receber --limite-100 como opção própria (npm_config_limite_100)
+const limite100 = argumentos.includes("--limite-100") || process.env.npm_config_limite_100 === "true";
 const [tipo = "", seg] = argumentos.filter((a) => !a.startsWith("--"));
 if (!["carga", "pgbench", "impacto"].includes(tipo)) {
   console.error("uso: npm run cenario -- <carga|pgbench|impacto> [segundos] [--limite-100]");

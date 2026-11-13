@@ -13,7 +13,7 @@ este ramo acrescenta apenas a pasta `testes/` e as dependências usadas por ela.
 | 5.2 Acurácia e completude (Tabela 11) | `avaliacao.ts` | `avaliacao-20261105-005638.md` (cenário 1), `avaliacao-20261105-005659.md` (cenário 2) |
 | 5.3 Comparação com o pgBadger (Tabela 12) | `avaliacao.ts` + `pgbadger/` | mesmos relatórios; saída do pgBadger em `*.pgbadger.json` |
 | 5.4 Tempo de processamento e sobrecarga (Tabela 13) | `avaliacao.ts` | mesmos relatórios |
-| 5.5 Impacto no servidor monitorado, Windows (Tabela 14) | `cenario.ts impacto` | `impacto-20261105-0052.md` |
+| 5.5 Impacto no servidor monitorado, Windows (Tabela 14) | `cenario.ts impacto --limite-100` | `impacto-20261113-0005.md` |
 | 5.5 Impacto no servidor monitorado, Linux (Tabela 15) | `cenario.ts impacto --limite-100` | `impacto-linux-20261109-1543.md`, `impacto-linux-100ms-20261109-1552.md` |
 | 5.6 Avaliação das recomendações (Tabela 16 e Apêndice A) | `avaliar-recomendacoes.ts` | `recomendacoes-202611092025.md` e `.json` |
 
@@ -47,7 +47,7 @@ coletor, que concorreria com as medições.
 | O que | Windows | Linux |
 | --- | --- | --- |
 | Cenários 1 a 3 (Tabelas 10 a 14), cerca de 30 min | `testes\avaliar.bat` | `sh testes/avaliar.sh` |
-| Vazão com as linhas de 100 ms (Tabela 15) | `npm run cenario -- impacto 60 --limite-100` | `sh testes/avaliar.sh 300 30 60 --limite-100` |
+| Vazão com as linhas de 100 ms (Tabelas 14 e 15) | `npm run cenario -- impacto 60 --limite-100` | `sh testes/avaliar.sh 300 30 60 --limite-100` |
 | Refazer só o pgBadger e os relatórios dos cenários 1 e 2 | `testes\refazer-relatorios.bat` | |
 | Casos de teste das recomendações (Tabela 16), cerca de 15 min | `testes\casos-de-teste.bat` | `sh testes/casos-de-teste.sh` |
 
