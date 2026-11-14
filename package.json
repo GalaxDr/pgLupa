@@ -1,5 +1,5 @@
 {
-  "name": "slowquery-monitor",
+  "name": "pglupa",
   "version": "0.1.0",
   "private": true,
   "scripts": {

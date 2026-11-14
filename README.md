@@ -20,7 +20,7 @@ A ferramenta funciona de dois modos:
 
 **Avaliação do TC:** os scripts e os resultados do Capítulo 5 (acurácia, comparação com o pgBadger,
 desempenho, impacto no servidor e casos de teste das recomendações) estão no ramo
-[`testes`](https://github.com/GalaxDr/slowquery-monitor/tree/testes/testes), na pasta `testes/`, junto
+[`testes`](https://github.com/GalaxDr/pgLupa/tree/testes/testes), na pasta `testes/`, junto
 com o servidor PostgreSQL de exemplo usado nos cenários.
 
 ## Arquitetura

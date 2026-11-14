@@ -24,7 +24,7 @@ const SQL_PG_STAT_STATEMENTS = `SELECT queryid::text AS query_id,
  * total de execução são registradas, para limitar o volume armazenado.
  */
 export async function registrarSnapshot(servidorId: number, conexao: string): Promise<number> {
-  const monitorado = new Client({ connectionString: conexao, application_name: "slowquery-monitor" });
+  const monitorado = new Client({ connectionString: conexao, application_name: "pglupa" });
   await monitorado.connect();
   try {
     const { rows } = await monitorado.query(SQL_PG_STAT_STATEMENTS, [LIMITE_CONSULTAS]);
